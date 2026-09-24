@@ -11,6 +11,7 @@ import {
   encodeVideo,
   generateVideoPreview,
   parseProbe,
+  planAttempts,
   probeVideo,
   ProgressParser,
   resolveEncoder,
@@ -125,6 +126,26 @@ describe('planning', () => {
     expect(resolveEncoder(cfg({ codec: 'av1', encoderMode: 'amf' }), allGpus).name).toBe('av1_amf')
   })
 
+  it('picks the best graphics card encoder in auto mode', () => {
+    expect(resolveEncoder(cfg({ encoderMode: 'auto' }), allGpus)).toEqual({ mode: 'nvenc', name: 'h264_nvenc' })
+    const intelOnly = { encoderSupport: { ...allGpus.encoderSupport, hevc: ['cpu', 'qsv'] as const } } as unknown as typeof allGpus
+    expect(resolveEncoder(cfg({ codec: 'hevc', encoderMode: 'auto' }), intelOnly)).toEqual({ mode: 'qsv', name: 'hevc_qsv' })
+    expect(resolveEncoder(cfg({ codec: 'vp9', encoderMode: 'auto' }), allGpus)).toEqual({ mode: 'qsv', name: 'vp9_qsv' })
+    // No graphics card: quietly use the CPU, with no warning note.
+    expect(resolveEncoder(cfg({ encoderMode: 'auto' }), null)).toEqual({ mode: 'cpu', name: 'libx264' })
+  })
+
+  it('retries graphics card jobs without GPU decoding, then on the CPU', () => {
+    const gpu = { mode: 'nvenc' as const, name: 'h264_nvenc' }
+    expect(planAttempts(gpu, cfg(), true).map((a) => `${a.encoder.name}${a.hwDecode ? '+hw' : ''}`)).toEqual([
+      'h264_nvenc+hw',
+      'h264_nvenc',
+      'libx264',
+    ])
+    expect(planAttempts(gpu, cfg(), false)).toHaveLength(2)
+    expect(planAttempts({ mode: 'cpu', name: 'libx264' }, cfg(), true)).toEqual([{ encoder: { mode: 'cpu', name: 'libx264' }, hwDecode: false }])
+  })
+
   it('picks audio codecs each container accepts', () => {
     expect(resolveAudioMode('webm', 'copy', 'aac')).toBe('opus')
     expect(resolveAudioMode('webm', 'aac', 'aac')).toBe('opus')
@@ -218,6 +239,13 @@ describe('buildVideoArgs', () => {
     const full = computeTargetBitrate(120, 10 * MB, 128, 1)
     const clip = computeTargetBitrate(trimWindow(info, { trimStart: 30, trimEnd: 45 }).duration, 10 * MB, 128, 1)
     expect(clip).toBeGreaterThan(full * 7)
+  })
+
+  it('asks FFmpeg to decode on the graphics card when told to', () => {
+    const a = args({ hwDecode: true, config: cfg({ trimStart: 5 }) })
+    expect(after(a, '-hwaccel')).toBe('auto')
+    expect(a.indexOf('-hwaccel')).toBeLessThan(a.indexOf('-i'))
+    expect(args()).not.toContain('-hwaccel')
   })
 
   it('adds seek and duration for preview clips', () => {
@@ -321,6 +349,25 @@ describe('real encodes', async () => {
     expect(vp9.notes.join(' ')).toMatch(/OPUS/)
     const vp9Info = await probeVideo(join(dir, 'vp9.webm'))
     expect(vp9Info.audioCodec).toBe('opus')
+  })
+
+  it.skipIf(!ok)('falls back to the CPU when the graphics card encoder fails', async () => {
+    // This machine has no NVIDIA card, so NVENC fails for real.
+    const out = join(dir, 'fallback.mp4')
+    const phases = new Set<string>()
+    const r = await encodeVideo({
+      input: source,
+      output: out,
+      info: sourceInfo,
+      config: cfg({ encoderMode: 'nvenc', preset: 'ultrafast', scale: '480p' }),
+      hardware: { ...({} as HardwareProfile), ...allGpus, performanceScore: 1 } as HardwareProfile,
+      hwDecode: true,
+      onProgress: (p) => p.phase && phases.add(p.phase),
+    })
+    expect(r.encoder.mode).toBe('cpu')
+    expect(r.notes[0]).toMatch(/NVENC encoder failed/)
+    expect([...phases]).toContain('Retrying on the CPU')
+    expect((await probeVideo(out)).width).toBe(854)
   })
 
   it.skipIf(!ok)('encodes only the trimmed part', async () => {

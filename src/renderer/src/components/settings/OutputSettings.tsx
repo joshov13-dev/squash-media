@@ -32,8 +32,8 @@ export function OutputSettings() {
             if (mode === 'folder' && !output.folder) void chooseFolder()
           }}
           options={[
-            { value: 'suffix', label: 'Beside original' },
-            { value: 'folder', label: 'Folder' },
+            { value: 'suffix', label: 'Same folder' },
+            { value: 'folder', label: 'Other folder' },
             { value: 'overwrite', label: 'Replace' },
           ]}
         />

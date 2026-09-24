@@ -4,6 +4,7 @@ import { useSettings } from '@renderer/store/settingsStore'
 import { Segmented } from '../ui/controls'
 import { ImageSettings } from './ImageSettings'
 import { OutputSettings } from './OutputSettings'
+import { QuickSettings } from './QuickSettings'
 import { VideoSettings } from './VideoSettings'
 
 export function SettingsPanel() {
@@ -11,9 +12,12 @@ export function SettingsPanel() {
   const setTab = useSettings((s) => s.setTab)
   const selectedType = useQueue((s) => s.jobs.find((j) => j.id === s.selectedId)?.type)
 
-  // Follow the selection: picking a video shows video settings, and so on.
+  // In the detailed tabs, follow the selection: picking a video shows video
+  // settings. The Quick tab stays put so it never jumps away from beginners.
   useEffect(() => {
-    if (selectedType) setTab(selectedType)
+    if (!selectedType) return
+    const current = useSettings.getState().tab
+    if (current === 'image' || current === 'video') setTab(selectedType)
   }, [selectedType, setTab])
 
   return (
@@ -23,6 +27,7 @@ export function SettingsPanel() {
           value={tab}
           onChange={setTab}
           options={[
+            { value: 'quick', label: 'Quick' },
             { value: 'image', label: 'Photos' },
             { value: 'video', label: 'Videos' },
             { value: 'output', label: 'Output' },
@@ -30,6 +35,7 @@ export function SettingsPanel() {
         />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+        {tab === 'quick' && <QuickSettings />}
         {tab === 'image' && <ImageSettings />}
         {tab === 'video' && <VideoSettings />}
         {tab === 'output' && <OutputSettings />}

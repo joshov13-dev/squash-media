@@ -1,4 +1,5 @@
 import { spawn, type SpawnOptions } from 'node:child_process'
+import os from 'node:os'
 
 export interface RunResult {
   code: number | null
@@ -15,6 +16,8 @@ export interface RunOptions {
   onStdout?: (chunk: Buffer) => void
   /** Keep only the last N characters of stderr. */
   stderrLimit?: number
+  /** OS scheduling priority for the child, e.g. os.constants.priority.PRIORITY_BELOW_NORMAL. */
+  priority?: number
 }
 
 export class AbortError extends Error {
@@ -26,7 +29,7 @@ export class AbortError extends Error {
 
 /** Spawn a process without a shell and collect its output. */
 export function runProcess(command: string, args: string[], options: RunOptions = {}): Promise<RunResult> {
-  const { timeoutMs, signal, cwd, env, onStdout, stderrLimit = 64_000 } = options
+  const { timeoutMs, signal, cwd, env, onStdout, stderrLimit = 64_000, priority } = options
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(new AbortError())
@@ -34,6 +37,13 @@ export function runProcess(command: string, args: string[], options: RunOptions 
     }
     const spawnOptions: SpawnOptions = { cwd, env: env ?? process.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
     const child = spawn(command, args, spawnOptions)
+    if (priority !== undefined && child.pid) {
+      try {
+        os.setPriority(child.pid, priority)
+      } catch {
+        // Not allowed on this system; run at normal priority.
+      }
+    }
     const out: Buffer[] = []
     let err = ''
     let settled = false

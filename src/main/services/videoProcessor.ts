@@ -6,6 +6,7 @@ import {
   CONTAINER_EXTENSIONS,
   ENCODER_NAMES,
   ENCODER_LABELS,
+  pickEncoderMode,
   SCALE_HEIGHTS,
   resolveAudioMode,
 } from '@shared/codecs'
@@ -173,15 +174,26 @@ export interface ResolvedEncoder {
   note?: string
 }
 
-/** Use the requested encoder if this PC supports it, otherwise fall back to the CPU. */
+export function cpuEncoder(config: VideoJobConfig): ResolvedEncoder {
+  return { mode: 'cpu', name: ENCODER_NAMES[config.codec].cpu! }
+}
+
+/**
+ * The encoder a job will use. "auto" takes the first graphics card encoder
+ * that passed the start-up test for this codec, otherwise the CPU. A named
+ * encoder this PC cannot run also falls back to the CPU, with a note.
+ */
 export function resolveEncoder(config: VideoJobConfig, hw: Pick<HardwareProfile, 'encoderSupport'> | null): ResolvedEncoder {
   const supported = hw?.encoderSupport[config.codec] ?? ['cpu']
   const wanted = config.encoderMode
+  if (wanted === 'auto') {
+    const mode = pickEncoderMode('auto', config.codec, supported)
+    return { mode, name: ENCODER_NAMES[config.codec][mode]! }
+  }
   const name = ENCODER_NAMES[config.codec][wanted]
   if (name && (wanted === 'cpu' || supported.includes(wanted))) return { mode: wanted, name }
   return {
-    mode: 'cpu',
-    name: ENCODER_NAMES[config.codec].cpu!,
+    ...cpuEncoder(config),
     note: `${ENCODER_LABELS[wanted]} is not available for ${CODECS[config.codec].label}, used the CPU`,
   }
 }
@@ -232,6 +244,8 @@ export interface BuildArgsInput {
   passLogFile?: string
   seekSeconds?: number
   durationSeconds?: number
+  /** Decode on the graphics card (-hwaccel auto). */
+  hwDecode?: boolean
 }
 
 function wantsTenBit(input: BuildArgsInput): boolean {
@@ -341,6 +355,7 @@ export function buildVideoArgs(input: BuildArgsInput): string[] {
   const trim = trimWindow(info, config)
   const seek = input.seekSeconds ?? (trim.trimmed ? trim.start : 0)
   const length = input.durationSeconds ?? (trim.trimmed ? trim.duration : 0)
+  if (input.hwDecode) args.push('-hwaccel', 'auto')
   if (seek > 0) args.push('-ss', seek.toFixed(3))
   args.push('-i', input.input)
   if (length > 0) args.push('-t', length.toFixed(3))
@@ -453,6 +468,10 @@ export interface EncodeVideoOptions {
   calibration?: CalibrationStore
   signal?: AbortSignal
   onProgress?: (p: VideoProgressEvent) => void
+  /** Decode on the graphics card when a graphics card encoder is used. */
+  hwDecode?: boolean
+  /** Run FFmpeg at below-normal priority. */
+  lowPriority?: boolean
 }
 
 export interface EncodeVideoResult {
@@ -468,7 +487,7 @@ const svtEnv = { ...process.env, SVT_LOG: '1' }
 
 async function runFfmpeg(
   args: string[],
-  opts: { cwd?: string; signal?: AbortSignal; onProgress?: (p: FfmpegProgress) => void },
+  opts: { cwd?: string; signal?: AbortSignal; onProgress?: (p: FfmpegProgress) => void; lowPriority?: boolean },
 ): Promise<void> {
   const { ffmpeg } = getBinaryPaths()
   const parser = new ProgressParser((p) => opts.onProgress?.(p))
@@ -476,6 +495,7 @@ async function runFfmpeg(
     cwd: opts.cwd,
     env: svtEnv,
     signal: opts.signal,
+    priority: opts.lowPriority ? os.constants.priority.PRIORITY_BELOW_NORMAL : undefined,
     onStdout: (chunk) => parser.push(chunk.toString('utf8')),
   })
   if (code !== 0) throw new Error(tailError(stderr))
@@ -501,9 +521,49 @@ export function supportsTwoPass(encoder: ResolvedEncoder): boolean {
   return encoder.name === 'libx264' || encoder.name === 'libx265' || encoder.name === 'libvpx-vp9'
 }
 
+interface Attempt {
+  encoder: ResolvedEncoder
+  hwDecode: boolean
+}
+
+/**
+ * Graphics card encodes can fail on driver quirks or unusual files. Rather
+ * than fail the job (and stall a big batch), try again without GPU decoding,
+ * then on the CPU.
+ */
+export function planAttempts(primary: ResolvedEncoder, config: VideoJobConfig, hwDecode: boolean): Attempt[] {
+  if (primary.mode === 'cpu') return [{ encoder: primary, hwDecode: false }]
+  const attempts: Attempt[] = []
+  if (hwDecode) attempts.push({ encoder: primary, hwDecode: true })
+  attempts.push({ encoder: primary, hwDecode: false })
+  attempts.push({ encoder: cpuEncoder(config), hwDecode: false })
+  return attempts
+}
+
 export async function encodeVideo(o: EncodeVideoOptions): Promise<EncodeVideoResult> {
+  const primary = resolveEncoder(o.config, o.hardware)
+  const attempts = planAttempts(primary, o.config, o.hwDecode ?? false)
+  let firstError: unknown
+  for (let i = 0; i < attempts.length; i++) {
+    const attempt = attempts[i]
+    try {
+      const result = await encodeWith(o, attempt, i > 0 && attempt.encoder.mode === 'cpu' && primary.mode !== 'cpu')
+      if (attempt.encoder.mode !== primary.mode) {
+        result.notes.unshift(`The ${ENCODER_LABELS[primary.mode]} encoder failed, so the CPU was used`)
+      }
+      return result
+    } catch (e) {
+      if (e instanceof AbortError || o.signal?.aborted) throw e
+      firstError ??= e
+      if (i === attempts.length - 1) throw firstError
+    }
+  }
+  throw firstError
+}
+
+async function encodeWith(o: EncodeVideoOptions, plan: Attempt, retryingOnCpu: boolean): Promise<EncodeVideoResult> {
   const { info, config } = o
-  const encoder = resolveEncoder(config, o.hardware)
+  const { encoder } = plan
   const audio = resolveAudioMode(config.container, config.audioCodec, info.audioCodec)
   const notes: string[] = []
   if (encoder.note) notes.push(encoder.note)
@@ -541,16 +601,19 @@ export async function encodeVideo(o: EncodeVideoOptions): Promise<EncodeVideoRes
           videoBitrateKbps: bitrate,
           pass: passArg,
           passLogFile: 'ffpass',
+          hwDecode: plan.hwDecode,
         })
         const started = Date.now()
         tracker.startPass(pass, started)
         let lastFrame = 0
         const phaseParts: string[] = []
+        if (retryingOnCpu) phaseParts.push('Retrying on the CPU')
         if (workload.passes > 1) phaseParts.push(`Pass ${pass} of ${workload.passes}`)
         if (attempt > 1) phaseParts.push(`Refit ${attempt - 1}`)
         await runFfmpeg(args, {
           cwd: workDir,
           signal: o.signal,
+          lowPriority: o.lowPriority,
           onProgress: (p) => {
             const frame = p.outTimeSeconds !== null ? p.outTimeSeconds * workload.outputFps : (p.frame ?? 0)
             lastFrame = Math.max(lastFrame, frame)
@@ -637,7 +700,7 @@ export async function generateVideoPreview(
   const length = window.duration
   const sampleSeconds = Math.min(4, length > 0 ? length : 4)
   const start = window.start + (length > sampleSeconds * 2 ? length * 0.4 : 0)
-  const encoder = resolveEncoder(config, hardware)
+  let encoder = resolveEncoder(config, hardware)
   const audio = resolveAudioMode(config.container, config.audioCodec, info.audioCodec)
   const audioKbps = audioKbpsFor(config, info, audio)
 
@@ -646,41 +709,55 @@ export async function generateVideoPreview(
   if (config.rateControl === 'targetSize') {
     bitrate = computeTargetBitrate(length, config.targetMaxSizeBytes, audioKbps, audio === 'none' ? 0 : info.audioStreams)
   }
+  let fallbackNote: string | undefined
 
   const workDir = await mkdtemp(join(os.tmpdir(), 'squashforge-preview-'))
   const samplePath = join(workDir, `sample${CONTAINER_EXTENSIONS[config.container]}`)
   try {
-    const args = buildVideoArgs({
-      input: req.filePath,
-      output: samplePath,
-      info,
-      config,
-      encoder,
-      audio,
-      videoBitrateKbps: bitrate,
-      seekSeconds: start,
-      durationSeconds: sampleSeconds,
-    })
     let firstAt = 0
     let firstFrame = 0
     let lastAt = 0
     let lastFrame = 0
     const outFps = computeOutputFps(info, config.fpsLimit)
-    const began = Date.now()
-    await runFfmpeg(args, {
-      cwd: workDir,
-      signal,
-      onProgress: (p) => {
-        const frame = p.outTimeSeconds !== null ? p.outTimeSeconds * outFps : (p.frame ?? 0)
-        const now = Date.now()
-        if (!firstAt && frame > 0) {
-          firstAt = now
-          firstFrame = frame
-        }
-        lastAt = now
-        lastFrame = frame
-      },
-    })
+    let began = Date.now()
+    const sample = (): Promise<void> => {
+      firstAt = firstFrame = lastAt = lastFrame = 0
+      began = Date.now()
+      const args = buildVideoArgs({
+        input: req.filePath,
+        output: samplePath,
+        info,
+        config,
+        encoder,
+        audio,
+        videoBitrateKbps: bitrate,
+        seekSeconds: start,
+        durationSeconds: sampleSeconds,
+      })
+      return runFfmpeg(args, {
+        cwd: workDir,
+        signal,
+        onProgress: (p) => {
+          const frame = p.outTimeSeconds !== null ? p.outTimeSeconds * outFps : (p.frame ?? 0)
+          const now = Date.now()
+          if (!firstAt && frame > 0) {
+            firstAt = now
+            firstFrame = frame
+          }
+          lastAt = now
+          lastFrame = frame
+        },
+      })
+    }
+    try {
+      await sample()
+    } catch (e) {
+      // Same safety net as real jobs: a graphics card failure falls back to the CPU.
+      if (encoder.mode === 'cpu' || signal?.aborted) throw e
+      fallbackNote = `The ${ENCODER_LABELS[encoder.mode]} encoder failed, so the CPU was used`
+      encoder = cpuEncoder(config)
+      await sample()
+    }
     const elapsed = (Date.now() - began) / 1000
     const steady = lastAt > firstAt && lastFrame > firstFrame ? (lastFrame - firstFrame) / ((lastAt - firstAt) / 1000) : 0
     const encodeFps = steady > 0 ? steady : (sampleSeconds * outFps) / Math.max(0.1, elapsed)
@@ -714,7 +791,7 @@ export async function generateVideoPreview(
       outputWidth: size.width,
       outputHeight: size.height,
       encoderUsed: encoder.name,
-      note: encoder.note,
+      note: fallbackNote ?? encoder.note,
     }
   } catch (e) {
     if (signal?.aborted) throw new AbortError()

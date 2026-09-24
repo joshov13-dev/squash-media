@@ -8,6 +8,7 @@ import { PreviewPanel } from './components/preview/PreviewPanel'
 import { QueuePanel } from './components/queue/QueuePanel'
 import { SettingsPanel } from './components/settings/SettingsPanel'
 import { useQueue } from './store/queueStore'
+import { useSettings } from './store/settingsStore'
 import { useSystem } from './store/systemStore'
 
 function useBridge(): void {
@@ -23,6 +24,13 @@ function useBridge(): void {
     ]
     // Subscribe first, then collect anything opened before the window was ready.
     void api.takeOpenPaths().then((paths) => useQueue.getState().addPaths(paths))
+    // The main process runs the queue, so it needs the saved preferences.
+    void api.setPreferences(useSettings.getState().preferences)
+    offs.push(
+      useSettings.subscribe((s, prev) => {
+        if (s.preferences !== prev.preferences) void api.setPreferences(s.preferences)
+      }),
+    )
     return () => offs.forEach((off) => off())
   }, [])
 }

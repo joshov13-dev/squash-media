@@ -27,6 +27,7 @@ const api: SquashApi = {
   revealInFolder: (path) => ipcRenderer.invoke(IPC.revealInFolder, path),
   openPath: (path) => ipcRenderer.invoke(IPC.openPath, path),
   powerAction: (action) => ipcRenderer.invoke(IPC.powerAction, action),
+  setPreferences: (prefs) => ipcRenderer.invoke(IPC.setPreferences, prefs),
   onJobUpdate: (cb) => subscribe(IPC.jobUpdate, cb),
   onQueueStats: (cb) => subscribe(IPC.queueStats, cb),
   onSystemLoad: (cb) => subscribe(IPC.systemLoad, cb),

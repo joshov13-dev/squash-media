@@ -10,6 +10,7 @@ It does the job of two well-known free tools in one window: Caesium for photos a
 
 - [Install it](#install-it)
 - [Compress your first files](#compress-your-first-files)
+- [Lots of videos? Use your graphics card](#lots-of-videos-use-your-graphics-card)
 - [Common jobs, step by step](#common-jobs-step-by-step)
 - [What the settings mean](#what-the-settings-mean)
 - [Something went wrong](#something-went-wrong)
@@ -21,13 +22,19 @@ It does the job of two well-known free tools in one window: Caesium for photos a
 1. Open the [latest release page](https://github.com/joshov13-dev/squash-media/releases/latest).
 2. Scroll down to **Assets** and click `SquashForge-Setup-0.1.0-x64.exe` (the version number may be higher). Your browser saves it to your Downloads folder. Ignore the two **Source code** files; those are for programmers. If the Source code files are the only ones you can see, the release is brand new and its download is still being built. Wait five minutes and refresh the page.
 3. Open your Downloads folder and double-click the file you just downloaded.
-4. Windows will probably show a blue box that says **Windows protected your PC**. This appears for any new program that hasn't paid for a code-signing certificate. Click **More info**, then **Run anyway**.
+4. Windows will probably show a blue box that says **Windows protected your PC**. Don't worry: Windows shows this for any new program that hasn't paid for a code-signing certificate, and SquashForge hasn't (yet). To get past it:
+   - Click the small underlined words **More info**, just under the message. At first the only button is **Don't run**, so it's easy to miss.
+   - The box now shows the file name and a second button, **Run anyway**. Click **Run anyway**.
+
+   ![The blue "Windows protected your PC" box after clicking More info. Click Run anyway.](docs/screenshots/smartscreen.png)
+
+   You only need to do this once for each version you download.
 5. The installer asks a couple of questions. The answers it already has are fine, so keep clicking **Next**, then **Install**, then **Finish**.
 6. SquashForge opens. Next time, click the Start button and type `SquashForge`, or use the shortcut on your desktop.
 
 ### Would rather not install anything?
 
-Download `SquashForge-Portable-0.1.0-x64.exe` instead and double-click it. It runs straight away without installing. It takes a few seconds longer to open each time, and the right-click menu in File Explorer only comes with the installed version.
+Download `SquashForge-Portable-0.1.0-x64.exe` instead and double-click it. You'll get the same blue box as above the first time: click **More info**, then **Run anyway**. After that it runs straight away without installing. It takes a few seconds longer to open each time, and the right-click menu in File Explorer only comes with the installed version.
 
 ### Removing it later
 
@@ -53,11 +60,22 @@ To look closely, scroll your mouse wheel over the picture to zoom in, and drag t
 
 For a video, click **Preview sample**. SquashForge compresses 4 seconds from the middle of the video, shows you the same frame before and after, and estimates the final size and how long the whole video will take.
 
-### 3. Change the settings (optional)
+### 3. Say what you want (optional)
 
-The panel on the right has three tabs: **Photos**, **Videos** and **Output**. It switches to the right tab when you click a file.
+The panel on the right opens on the **Quick** tab. Pick what you want from the list and every photo and video setting is chosen for you. The first one, **Smaller, same look**, is already picked and suits most files, so you can skip this step.
 
-The easiest way to change settings is the preset menu at the top of the Photos or Videos tab. Pick one and the rest is set for you. The defaults (**Balanced** for photos, **Standard** for videos) suit most files, so you can skip this step entirely.
+| Pick this | When |
+| --- | --- |
+| Smaller, same look | You want smaller files that look exactly the same. Keeps each file's type and size. |
+| Share online | Photos and videos are going on a website or social media. |
+| As small as possible | Space matters most and you don't mind waiting a bit longer. |
+| Discord (under 10 MB) | You're posting to Discord without Nitro. |
+| Email (under 20 MB) | You're attaching things to an email. |
+| Best quality | Nothing may look any different. Saves less space. |
+
+The Quick tab also has **Use my graphics card** (see [below](#lots-of-videos-use-your-graphics-card)) and where to save the new files.
+
+Want more control? The **Photos**, **Videos** and **Output** tabs have every setting, and each has its own preset menu at the top:
 
 | Preset | Use it when |
 | --- | --- |
@@ -77,7 +95,7 @@ Click **Compress** at the top right. Each file shows its progress and how long i
 
 ![SquashForge part way through. Each file shows a progress bar and time left.](docs/screenshots/compressing.png)
 
-You can keep using your PC while it works, but it will be slower than usual because SquashForge uses the whole processor. Your PC won't go to sleep on its own until the queue is finished.
+You can keep using your PC while it works, but it may feel slower than usual because SquashForge uses the whole processor. If that bothers you, turn on **Keep the PC responsive** in **Settings**. Your PC won't go to sleep on its own until the queue is finished.
 
 ### 5. Find your new files
 
@@ -89,11 +107,45 @@ Unless you change it, each new file is saved next to its original with `_compres
 
 If a compressed file would come out bigger than the original (it happens with files that were already squeezed hard), SquashForge keeps the original and says so.
 
+## Lots of videos? Use your graphics card
+
+Compressing video on the processor is slow. Most graphics cards from the last eight years or so have a separate video encoder built in, and it is many times faster: often the difference between a whole day and an hour or two for a big pile of videos. SquashForge works with NVIDIA (NVENC), Intel (Quick Sync) and AMD (AMF).
+
+You don't need to do anything to turn it on. The video encoder is set to **Auto** from the start. Auto uses your graphics card if SquashForge found one that works when it opened, and the processor if not. To check, look at **Use my graphics card** on the **Quick** tab. It is switched on, and names your card's encoder, when one was found.
+
+![The Videos tab with the encoder set to Auto, using NVENC.](docs/screenshots/video-encoder.png)
+
+The trade-off is size: for the same quality, a graphics card makes files a little bigger than the processor does. Switch **Use my graphics card** off (or choose **CPU** as the encoder on the **Videos** tab) when you want the smallest possible files and have time to wait.
+
+If the graphics card ever fails on a file, for example because of an old driver, SquashForge redoes that file on the processor and carries on with the rest. The file shows a short note saying so.
+
+### Settings for big batches
+
+Click **Settings** at the top of the window.
+
+![The Settings window.](docs/screenshots/settings.png)
+
+| Setting | What it does |
+| --- | --- |
+| Videos at once | How many videos are compressed side by side. With a graphics card, 2 or 3 gets a big batch done sooner. On the processor, leave it at 1. |
+| Photos at once | How many photos are compressed side by side. **Auto** picks a number for your processor. |
+| Read videos on the graphics card too | The graphics card also reads (decodes) the original video, taking more work off the processor. If it can't read a file, SquashForge reads that one on the processor instead. |
+| Keep the PC responsive | Runs compression at a lower priority so games, video calls and other programs stay smooth. Takes a little longer. |
+| Leave out earlier copies | When you add a folder, files ending in `_compressed` (your earlier results) are left out, so nothing gets compressed twice. |
+| Skip files that are already done | If a file's compressed copy already exists, leave it. Handy for carrying on with a big batch another day: add the same folder again and press **Compress**. |
+| Stop the PC going to sleep | Keeps the PC awake while files are being compressed, then lets it sleep as normal. |
+| Show a notification when it finishes | Pops up a Windows notification when the queue is done and you're using another program. |
+| Ask before quitting mid-way | Warns you if you close SquashForge while it's still working. |
+
+**Reset all settings** at the bottom puts everything, including the tabs on the right, back to how it was on first launch. Presets you saved are kept.
+
+A tip for really big jobs: add one folder at a time and use **When done** at the bottom of the window to put the PC to sleep when it's finished.
+
 ## Common jobs, step by step
 
 ### Make a video small enough for Discord
 
-Click the video, open the **Videos** tab, choose **Discord (10 MB)** from the preset menu and press **Compress**. SquashForge works out the right quality for the length of your video. If the result still comes out too big, it tries again automatically.
+On the **Quick** tab, pick **Discord (under 10 MB)** and press **Compress**. (To do it for one video only, click the video, open the **Videos** tab, choose **This video only** and then **Discord (10 MB)** from the preset menu.) SquashForge works out the right quality for the length of your video. If the result still comes out too big, it tries again automatically.
 
 For a different limit, change **Quality** to **Target size** and type the size in MB.
 
@@ -113,7 +165,7 @@ Click the file, then choose **This photo only** (or **This video only**) at the 
 
 ### Save everything into one folder
 
-Open the **Output** tab, choose **Folder** and pick where the files should go. If you added a whole folder, **Keep subfolders** recreates its layout inside the destination, so two files called `IMG_0001.jpg` from different days won't clash.
+On the **Quick** or **Output** tab, choose **Other folder** and pick where the files should go. If you added a whole folder, **Keep subfolders** recreates its layout inside the destination, so two files called `IMG_0001.jpg` from different days won't clash.
 
 ![The Output tab with the save options.](docs/screenshots/output-settings.png)
 
@@ -129,9 +181,9 @@ If you installed SquashForge, right-click a photo, a video or a folder and choos
 
 Once compressing has started, the bar at the bottom of the window shows **When done**. Choose **Sleep** or **Shut down**. When the queue finishes you get a minute to cancel before it happens.
 
-### Use your graphics card for faster video
+### Pick a specific encoder
 
-On the **Videos** tab, the **Encoder** row shows **NVENC** (NVIDIA), **QSV** (Intel) and **AMF** (AMD). Any that your PC supports can be clicked. They are much faster than **CPU**, and the files come out a little bigger for the same quality. Greyed-out options mean that graphics card isn't in your PC or its driver is too old.
+On the **Videos** tab, the **Encoder** row has **Auto**, **CPU**, **NVENC** (NVIDIA), **QSV** (Intel) and **AMF** (AMD). Auto is right for almost everyone. Greyed-out options mean that graphics card isn't in your PC, or its driver is too old for it.
 
 ## What the settings mean
 
@@ -154,7 +206,7 @@ Most options have a short explanation right under them in the app. Here is the l
 | --- | --- |
 | Codec | **H.264** plays on everything. **H.265** makes files about half the size, but some older devices can't play it. **AV1** is the smallest but slow to make. **VP9** is mainly for websites. |
 | Container | The file type: **MP4** for most uses, **MKV** keeps extra subtitle tracks, **WebM** is for websites. |
-| Encoder | **CPU** gives the smallest files. The graphics card options are much faster. |
+| Encoder | **Auto** uses your graphics card when it can and the processor when it can't. **CPU** gives the smallest files. **NVENC**, **QSV** and **AMF** force a particular graphics card encoder. |
 | Speed | Slower settings squeeze the file harder at the same quality. |
 | Quality | Lower numbers mean better quality and bigger files. The shaded part of the slider is the range most people use. |
 | Target size | Aims for an exact file size instead of a quality level. |
@@ -166,8 +218,8 @@ Most options have a short explanation right under them in the app. Here is the l
 
 | Setting | What it does |
 | --- | --- |
-| Beside original | Saves the new file next to the original with an ending added to the name, `_compressed` unless you change it. |
-| Folder | Saves everything into a folder you choose. |
+| Same folder | Saves the new file next to the original with an ending added to the name, `_compressed` unless you change it. |
+| Other folder | Saves everything into a folder you choose. |
 | Replace | The new file takes the original's place. Originals go to the Recycle Bin. |
 | Keep the original if the result is bigger | Leaves files alone when compressing wouldn't help. |
 | Keep the modified date | Gives the new file the same date as the original, so photo apps keep them in order. |
@@ -178,7 +230,7 @@ Your settings are remembered the next time you open SquashForge. The arrow butto
 
 ### "Windows protected your PC"
 
-Click **More info**, then **Run anyway**. See [Install it](#install-it).
+This is expected, for both the installer and the portable version. Click the small underlined **More info** under the message, then the **Run anyway** button that appears. There's a picture in [Install it](#install-it).
 
 ### A file has red text under it
 
@@ -187,7 +239,7 @@ That file couldn't be compressed, and the red text says why in plain words. Hove
 - The file is open in another program. Close it and click the circular arrow next to the file to try again.
 - The disk is full, or you picked a folder you can't save to. Choose another folder in the **Output** tab.
 - The file is damaged. Check it opens in another program.
-- A graphics card encoder failed to start. Switch **Encoder** to **CPU**, or update your graphics driver.
+- The graphics card failed and so did the processor. That usually means the file is damaged or in an unusual format.
 
 ### It says "Original kept"
 
@@ -203,11 +255,15 @@ They are in the Recycle Bin. Open it, select them and click **Restore**.
 
 ### Compressing a video is slow
 
-Video takes time, especially long 4K videos. You can speed it up by choosing **Fast** or **Fastest** under **Speed**, a lower **Resolution**, or a graphics card **Encoder** if yours is supported. The time left shown next to each file gets more accurate the more you use SquashForge.
+Video takes time, especially long 4K videos. First check that **Use my graphics card** is on in the **Quick** tab (see [Lots of videos? Use your graphics card](#lots-of-videos-use-your-graphics-card)). You can also pick **Fast** or **Fastest** under **Speed**, or a lower **Resolution**. The time left shown next to each file gets more accurate the more you use SquashForge.
+
+### "Use my graphics card" is greyed out
+
+SquashForge didn't find a graphics card it can use for video. Updating your graphics driver (from NVIDIA, Intel or AMD's website) and restarting SquashForge often fixes it. Some older or very basic graphics chips have no video encoder at all; then videos use the processor.
 
 ### My PC is slow while it works
 
-That is expected. SquashForge uses every processor core to finish sooner. It goes back to normal when the queue is done.
+That is expected. SquashForge uses every processor core to finish sooner. Turn on **Keep the PC responsive** in **Settings** to let other programs go first. It goes back to normal when the queue is done.
 
 ## Keyboard shortcuts
 
@@ -263,6 +319,7 @@ src/
 │   ├── hardware.ts            CPU, GPU and RAM detection, encoder test runs
 │   ├── systemMonitor.ts       live CPU, GPU and encoder load
 │   ├── power.ts               sleep or shut down when the queue is done
+│   ├── preferences.ts         the Settings window's options, as the queue sees them
 │   ├── services/
 │   │   ├── imageProcessor.ts  sharp pipelines, target-size search, previews
 │   │   ├── jpegStrip.ts       lossless JPEG metadata removal

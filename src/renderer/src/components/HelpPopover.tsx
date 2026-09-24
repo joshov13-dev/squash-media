@@ -27,7 +27,7 @@ export function HelpPopover() {
 
   const steps = [
     'Drag photos or videos onto this window, or use Add files. Whole folders work too.',
-    'Pick a preset on the right, or leave the settings as they are. They work well for most files.',
+    'Pick what you want in the Quick tab on the right, or leave it on "Smaller, same look". It suits most files.',
     'Click a file to see the original and the compressed version side by side. Drag the line in the middle to compare.',
     'Press Compress. ' + whereFilesGo(output),
   ]

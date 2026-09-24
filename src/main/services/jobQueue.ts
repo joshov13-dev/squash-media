@@ -1,9 +1,11 @@
+import { existsSync } from 'node:fs'
 import { copyFile, mkdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import type { Stats } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { resolveImageFormat } from '@shared/codecs'
 import { formatEta } from '@shared/format'
 import type {
+  AppPreferences,
   HardwareProfile,
   ImageInfo,
   JobRequest,
@@ -60,6 +62,7 @@ interface QueueItem {
 
 export interface JobQueueDeps {
   getHardware: () => Promise<HardwareProfile>
+  getPreferences: () => AppPreferences
   calibration: CalibrationStore
   emitUpdate: (update: JobUpdate) => void
   emitStats: (stats: QueueStats) => void
@@ -148,17 +151,22 @@ export class JobQueue {
     return 1
   }
 
+  private imageLanes(): number {
+    return this.deps.getPreferences().photosAtOnce || this.hardware?.imageConcurrency || 2
+  }
+
   private pump(): void {
-    const concurrency = this.hardware?.imageConcurrency ?? 2
+    const imageLanes = this.imageLanes()
+    const videoLanes = this.deps.getPreferences().videosAtOnce
     for (const item of this.items) {
       if (item.status !== 'queued') continue
-      if (item.req.type === 'image' && this.runningImages < concurrency) {
+      if (item.req.type === 'image' && this.runningImages < imageLanes) {
         this.runningImages++
         void this.run(item).finally(() => {
           this.runningImages--
           this.pump()
         })
-      } else if (item.req.type === 'video' && this.runningVideos < 1) {
+      } else if (item.req.type === 'video' && this.runningVideos < videoLanes) {
         this.runningVideos++
         void this.run(item).finally(() => {
           this.runningVideos--
@@ -201,18 +209,19 @@ export class JobQueue {
     const config = req.imageConfig!
     const info = req.info as ImageInfo
     const sourceStat = await stat(req.filePath)
+    const format = resolveImageFormat(config.format, info.format)
+    const natural = planOutputPath(req.filePath, imageOutputExtension(req.filePath, info.format, format), req.output, req.relativeDir)
+    if (await this.skipIfDone(item, natural)) return
+    const plan = this.claim(item, natural)
     const started = Date.now()
 
     const result = await compressImage(req.filePath, config)
     if (item.controller?.signal.aborted) throw new AbortError()
 
     const elapsed = (Date.now() - started) / 1000
-    const format = resolveImageFormat(config.format, info.format)
     const base = predictImageSeconds((info.width * info.height) / 1e6, format, config.mode, this.hardware?.performanceScore ?? 1)
     this.deps.calibration.record(imageKey(format, config.mode), elapsed / base)
 
-    const ext = imageOutputExtension(req.filePath, info.format, result.format)
-    const plan = this.claim(item, planOutputPath(req.filePath, ext, req.output, req.relativeDir))
     const larger = result.data.length >= result.originalBytes && req.output.keepOriginalIfLarger
     if (result.unchanged || larger) {
       const note = result.unchanged ? result.note : 'Original kept: compressed file was larger'
@@ -241,7 +250,10 @@ export class JobQueue {
       }
       config = { ...config, targetMaxSizeBytes: req.sizeBytes }
     }
-    const plan = this.claim(item, planOutputPath(req.filePath, videoOutputExtension(config.container), req.output, req.relativeDir))
+    const natural = planOutputPath(req.filePath, videoOutputExtension(config.container), req.output, req.relativeDir)
+    if (await this.skipIfDone(item, natural)) return
+    const plan = this.claim(item, natural)
+    const prefs = this.deps.getPreferences()
     const temp = tempPathFor(plan.finalPath, req.id)
     await mkdir(dirname(plan.finalPath), { recursive: true })
 
@@ -255,6 +267,8 @@ export class JobQueue {
         hardware: this.hardware,
         calibration: this.deps.calibration,
         signal: item.controller!.signal,
+        hwDecode: prefs.gpuDecoding,
+        lowPriority: prefs.lowPriority,
         onProgress: (p) => {
           item.percent = p.percent
           item.remaining = p.etaSeconds
@@ -283,6 +297,19 @@ export class JobQueue {
       await rm(temp, { force: true }).catch(() => undefined)
       throw e
     }
+  }
+
+  /** "Skip files compressed in an earlier session": the output is already there. */
+  private async skipIfDone(item: QueueItem, plan: OutputPlan): Promise<boolean> {
+    if (!this.deps.getPreferences().skipExisting || plan.replacesSource || !existsSync(plan.finalPath)) return false
+    if (this.claimed.has(this.pathKey(plan.finalPath))) return false
+    const size = (await stat(plan.finalPath)).size
+    item.status = 'skipped'
+    item.percent = 100
+    item.remaining = 0
+    item.outputBytes = size
+    this.emit(item, true, { compressedSizeBytes: size, outputPath: plan.finalPath, note: 'Already compressed earlier' })
+    return true
   }
 
   private pathKey(p: string): string {
@@ -388,7 +415,8 @@ export class JobQueue {
   }
 
   computeStats(): QueueStats {
-    const concurrency = this.hardware?.imageConcurrency ?? 2
+    const concurrency = this.imageLanes()
+    const videoLanes = this.deps.getPreferences().videosAtOnce
     let imageLane = 0
     let videoLane = 0
     let weightTotal = 0
@@ -415,7 +443,8 @@ export class JobQueue {
       else videoLane += remaining
     }
     // Image and video lanes run side by side; the slower lane sets the finish time.
-    const eta = Math.max(imageLane / imageLaneSpeedup(concurrency), videoLane)
+    // Parallel videos share the encoder, so each extra lane adds about half a lane.
+    const eta = Math.max(imageLane / imageLaneSpeedup(concurrency), videoLane / imageLaneSpeedup(videoLanes))
     const active = this.busy
     return {
       active,

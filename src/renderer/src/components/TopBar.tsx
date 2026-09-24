@@ -5,6 +5,7 @@ import { ACTIVE, useQueue } from '@renderer/store/queueStore'
 import { useSystem } from '@renderer/store/systemStore'
 import { HelpPopover } from './HelpPopover'
 import { Logo } from './Logo'
+import { SettingsDialog } from './SettingsDialog'
 import { Button, Tip } from './ui/controls'
 
 export function TopBar() {
@@ -41,6 +42,7 @@ export function TopBar() {
         Add folder
       </Button>
       <div className="flex-1" />
+      <SettingsDialog />
       <HelpPopover />
       {running ? (
         <Button variant="danger" onClick={stopAll}>

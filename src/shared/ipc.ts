@@ -1,5 +1,6 @@
 import type {
   AppInfo,
+  AppPreferences,
   HardwareProfile,
   ImageOriginal,
   ImagePreviewRequest,
@@ -33,6 +34,7 @@ export const IPC = {
   revealInFolder: 'shell:reveal',
   openPath: 'shell:open',
   powerAction: 'power:action',
+  setPreferences: 'app:set-preferences',
   // main -> renderer
   jobUpdate: 'queue:update',
   queueStats: 'queue:stats',
@@ -64,6 +66,7 @@ export interface SquashApi {
   cancelAll(): Promise<void>
   revealInFolder(path: string): Promise<void>
   openPath(path: string): Promise<void>
+  setPreferences(prefs: AppPreferences): Promise<void>
   /** Put the PC to sleep or shut it down once the queue is finished. */
   powerAction(action: Exclude<WhenDone, 'nothing'>): Promise<void>
   onJobUpdate(cb: (update: JobUpdate) => void): Unsubscribe

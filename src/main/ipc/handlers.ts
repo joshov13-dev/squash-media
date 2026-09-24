@@ -4,6 +4,7 @@ import { isAbsolute } from 'node:path'
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/codecs'
 import { IPC } from '@shared/ipc'
 import type {
+  AppPreferences,
   ImagePreviewRequest,
   ImagePreviewResult,
   JobRequest,
@@ -14,6 +15,7 @@ import type {
 } from '@shared/types'
 import { getHardwareProfile } from '../hardware'
 import { runPowerAction } from '../power'
+import { setPreferences } from '../preferences'
 import { generateImagePreview, getDisplayableOriginal, makeImageThumbnail } from '../services/imageProcessor'
 import type { JobQueue } from '../services/jobQueue'
 import { resolveMedia } from '../services/mediaResolver'
@@ -72,6 +74,7 @@ export function registerIpcHandlers(queue: JobQueue): void {
 
   ipcMain.handle(IPC.appInfo, () => ({ version: app.getVersion(), platform: process.platform }))
   ipcMain.handle(IPC.hardware, () => getHardwareProfile())
+  ipcMain.handle(IPC.setPreferences, (_e, prefs: Partial<AppPreferences>) => setPreferences(prefs))
   ipcMain.handle(IPC.powerAction, (_e, action: WhenDone) => {
     if (action === 'sleep' || action === 'shutdown') runPowerAction(action)
   })
