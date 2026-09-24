@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# SquashForge build output
+out/
+release/
+# Downloaded ffmpeg/ffprobe binaries (fetched by `npm run fetch:ffmpeg`)
+binaries/*/
+!binaries/README.md
