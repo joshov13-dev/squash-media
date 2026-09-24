@@ -19,7 +19,7 @@ It does the job of two well-known free tools in one window: Caesium for photos a
 ## Install it
 
 1. Open the [latest release page](https://github.com/joshov13-dev/squash-media/releases/latest).
-2. Scroll down to **Assets** and click `SquashForge-Setup-0.1.0-x64.exe` (the version number may be higher). Your browser saves it to your Downloads folder.
+2. Scroll down to **Assets** and click `SquashForge-Setup-0.1.0-x64.exe` (the version number may be higher). Your browser saves it to your Downloads folder. Ignore the two **Source code** files; those are for programmers. If the Source code files are the only ones you can see, the release is brand new and its download is still being built. Wait five minutes and refresh the page.
 3. Open your Downloads folder and double-click the file you just downloaded.
 4. Windows will probably show a blue box that says **Windows protected your PC**. This appears for any new program that hasn't paid for a code-signing certificate. Click **More info**, then **Run anyway**.
 5. The installer asks a couple of questions. The answers it already has are fine, so keep clicking **Next**, then **Install**, then **Finish**.
