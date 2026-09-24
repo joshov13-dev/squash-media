@@ -3,8 +3,8 @@ import { api } from '@renderer/lib/api'
 import { cn } from '@renderer/lib/cn'
 import { ACTIVE, useQueue } from '@renderer/store/queueStore'
 import { useSystem } from '@renderer/store/systemStore'
+import { HelpPopover } from './HelpPopover'
 import { Logo } from './Logo'
-import { PresetPicker } from './presets/PresetPicker'
 import { Button, Tip } from './ui/controls'
 
 export function TopBar() {
@@ -40,8 +40,8 @@ export function TopBar() {
         <FolderPlus size={15} strokeWidth={1.75} />
         Add folder
       </Button>
-      <PresetPicker />
       <div className="flex-1" />
+      <HelpPopover />
       {running ? (
         <Button variant="danger" onClick={stopAll}>
           <Square size={12} strokeWidth={2.5} />

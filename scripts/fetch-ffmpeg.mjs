@@ -1,13 +1,17 @@
-// Downloads static ffmpeg + ffprobe builds into binaries/<platform>.
+// Downloads ffmpeg + ffprobe into binaries/<platform>.
 //
 //   node scripts/fetch-ffmpeg.mjs          -> Windows x64 (for packaging)
 //   node scripts/fetch-ffmpeg.mjs linux    -> Linux x64 (for local development)
+//
+// Windows uses the "shared" build: ffmpeg.exe and ffprobe.exe are tiny and
+// load the same set of DLLs, so the pair is about 190 MB instead of the
+// 330 MB two static executables would take.
 //
 // Override the download with FFMPEG_URL=<zip or tar.xz url>.
 import { execFileSync } from 'node:child_process'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import os from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const target = process.argv[2] ?? 'win'
@@ -20,11 +24,15 @@ const SOURCES = {
   win: {
     dir: 'win',
     exe: '.exe',
-    urls: [`${BASE}/ffmpeg-n8.1-latest-win64-gpl-8.1.zip`, `${BASE}/ffmpeg-master-latest-win64-gpl.zip`],
+    libraries: /\.dll$/i,
+    urls: [`${BASE}/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip`, `${BASE}/ffmpeg-master-latest-win64-gpl-shared.zip`],
   },
+  // Static on Linux: it is only used for development, and a shared build
+  // would need its lib folder kept alongside.
   linux: {
     dir: 'linux',
     exe: '',
+    libraries: null,
     urls: [`${BASE}/ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz`, `${BASE}/ffmpeg-master-latest-linux64-gpl.tar.xz`],
   },
 }
@@ -91,6 +99,8 @@ try {
   const unpacked = join(work, 'unpacked')
   extract(archive, unpacked)
 
+  // Start clean so DLLs from an older build never mix with new ones.
+  rmSync(outDir, { recursive: true, force: true })
   mkdirSync(outDir, { recursive: true })
   for (const tool of ['ffmpeg', 'ffprobe']) {
     const file = find(unpacked, tool + source.exe)
@@ -98,6 +108,12 @@ try {
     const dest = join(outDir, tool + source.exe)
     copyFileSync(file, dest)
     if (!source.exe) chmodSync(dest, 0o755)
+  }
+  if (source.libraries) {
+    const binDir = dirname(find(unpacked, 'ffmpeg' + source.exe))
+    for (const entry of readdirSync(binDir)) {
+      if (source.libraries.test(entry)) copyFileSync(join(binDir, entry), join(outDir, entry))
+    }
   }
   const licence = find(unpacked, 'LICENSE.txt')
   if (licence) copyFileSync(licence, join(outDir, 'FFMPEG-LICENSE.txt'))

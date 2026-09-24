@@ -85,6 +85,8 @@ export interface MediaFile {
   id: string
   filePath: string
   fileName: string
+  /** Folder path below a dropped folder, e.g. "Holiday/Day 1". Unset for loose files. */
+  relativeDir?: string
   type: MediaType
   sizeBytes: number
   info: MediaInfo
@@ -144,6 +146,10 @@ export interface VideoJobConfig {
   scale: VideoScale
   /** 0 keeps the source frame rate. */
   fpsLimit: number
+  /** Seconds into the source to start from. Set per file, never globally. */
+  trimStart?: number
+  /** Seconds into the source to stop at. Set per file, never globally. */
+  trimEnd?: number
 }
 
 export type OutputMode = 'suffix' | 'folder' | 'overwrite'
@@ -156,6 +162,15 @@ export interface OutputSettings {
   keepOriginalIfLarger: boolean
   /** Copy the source file's modified date onto the output. */
   preserveTimestamps: boolean
+  /** In folder mode, recreate the subfolders of dropped folders. */
+  keepFolderStructure: boolean
+}
+
+export type WhenDone = 'nothing' | 'sleep' | 'shutdown'
+
+export interface AppInfo {
+  version: string
+  platform: NodeJS.Platform
 }
 
 // ---------------------------------------------------------------------------
@@ -184,7 +199,17 @@ export interface ProgressStatus {
   humanReadableEta: string
 }
 
+export interface TrimRange {
+  start: number
+  end: number
+}
+
 export interface MediaJob extends MediaFile {
+  /** Settings for this file only. Unset means it follows the shared settings. */
+  imageOverride?: ImageJobConfig
+  videoOverride?: VideoJobConfig
+  /** Part of a video to keep. */
+  trim?: TrimRange
   status: JobStatus
   progress: ProgressStatus
   compressedSizeBytes?: number
@@ -192,6 +217,8 @@ export interface MediaJob extends MediaFile {
   /** Short human note, e.g. "Original kept: output was larger". */
   note?: string
   error?: string
+  /** The raw error behind a friendly message. */
+  errorDetail?: string
   startedAt?: number
   finishedAt?: number
 }
@@ -199,6 +226,7 @@ export interface MediaJob extends MediaFile {
 export interface JobRequest {
   id: string
   filePath: string
+  relativeDir?: string
   type: MediaType
   sizeBytes: number
   info: MediaInfo
@@ -215,6 +243,7 @@ export interface JobUpdate {
   outputPath?: string
   note?: string
   error?: string
+  errorDetail?: string
 }
 
 export interface QueueStats {
@@ -228,6 +257,9 @@ export interface QueueStats {
   estimatedSecondsRemaining: number
   humanReadableEta: string
   elapsedSeconds: number
+  /** Size of the finished files before and after, for the run. */
+  originalBytes: number
+  outputBytes: number
 }
 
 // ---------------------------------------------------------------------------

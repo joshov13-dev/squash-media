@@ -107,6 +107,8 @@ export interface VideoWorkload {
   outputWidth: number
   outputHeight: number
   outputFps: number
+  /** Seconds of video that will be encoded (after trimming). */
+  durationSeconds: number
   passes: number
 }
 
@@ -130,15 +132,15 @@ export function predictVideoFps(w: VideoWorkload, performanceScore: number, cali
   return Math.max(0.2, fps / factor)
 }
 
-export function outputFrameCount(info: VideoInfo, outputFps: number): number {
-  if (info.durationSeconds > 0 && outputFps > 0) return Math.max(1, Math.round(info.durationSeconds * outputFps))
+export function outputFrameCount(info: VideoInfo, outputFps: number, durationSeconds = info.durationSeconds): number {
+  if (durationSeconds > 0 && outputFps > 0) return Math.max(1, Math.round(durationSeconds * outputFps))
   return Math.max(1, info.totalFrames)
 }
 
 /** Whole-job estimate in seconds, before encoding starts. */
 export function predictVideoSeconds(w: VideoWorkload, performanceScore: number, calibration?: CalibrationStore): number {
   const fps = predictVideoFps(w, performanceScore, calibration)
-  const frames = outputFrameCount(w.info, w.outputFps)
+  const frames = outputFrameCount(w.info, w.outputFps, w.durationSeconds)
   const secondPass = frames / fps
   if (w.passes < 2) return secondPass
   return secondPass + secondPass / firstPassSpeedRatio(w.codec, w.mode)

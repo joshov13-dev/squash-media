@@ -36,3 +36,29 @@ export function savingsPercent(original: number, compressed: number): number {
   if (original <= 0) return 0
   return Math.round((1 - compressed / original) * 100)
 }
+
+/** "1:05.5", "1:02:03". Shows tenths only when there are any. */
+export function formatTimecode(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
+  const tenths = Math.round(seconds * 10)
+  const whole = Math.floor(tenths / 10)
+  const frac = tenths % 10
+  const h = Math.floor(whole / 3600)
+  const m = Math.floor((whole % 3600) / 60)
+  const s = whole % 60
+  const ss = String(s).padStart(2, '0') + (frac ? `.${frac}` : '')
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
+}
+
+/** Reads "90", "1:30", "1:30.5" or "0:01:30". Returns null when it cannot. */
+export function parseTimecode(text: string): number | null {
+  const parts = text.trim().replace(',', '.').split(':')
+  if (parts.length === 0 || parts.length > 3 || parts.some((p) => p.trim() === '')) return null
+  let total = 0
+  for (const part of parts) {
+    const n = Number(part)
+    if (!Number.isFinite(n) || n < 0) return null
+    total = total * 60 + n
+  }
+  return total
+}

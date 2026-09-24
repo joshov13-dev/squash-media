@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { existsSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/codecs'
@@ -10,8 +10,10 @@ import type {
   MediaFile,
   VideoPreviewRequest,
   VideoPreviewResult,
+  WhenDone,
 } from '@shared/types'
 import { getHardwareProfile } from '../hardware'
+import { runPowerAction } from '../power'
 import { generateImagePreview, getDisplayableOriginal, makeImageThumbnail } from '../services/imageProcessor'
 import type { JobQueue } from '../services/jobQueue'
 import { resolveMedia } from '../services/mediaResolver'
@@ -68,7 +70,11 @@ export function registerIpcHandlers(queue: JobQueue): void {
   const fullPreviews = new LatestOnly<ImagePreviewRequest, ImagePreviewResult>((req) => generateImagePreview(req))
   let videoPreview: AbortController | null = null
 
+  ipcMain.handle(IPC.appInfo, () => ({ version: app.getVersion(), platform: process.platform }))
   ipcMain.handle(IPC.hardware, () => getHardwareProfile())
+  ipcMain.handle(IPC.powerAction, (_e, action: WhenDone) => {
+    if (action === 'sleep' || action === 'shutdown') runPowerAction(action)
+  })
 
   ipcMain.handle(IPC.openFiles, async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)

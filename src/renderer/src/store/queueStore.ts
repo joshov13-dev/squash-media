@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { formatEta } from '@shared/format'
-import type { JobRequest, JobStatus, JobUpdate, MediaFile, MediaJob } from '@shared/types'
+import type { ImageJobConfig, JobRequest, JobStatus, JobUpdate, MediaFile, MediaJob, TrimRange, VideoJobConfig } from '@shared/types'
 import { api } from '@renderer/lib/api'
+import { effectiveImageConfig, effectiveVideoConfig } from '@renderer/lib/effective'
 import { useSettings } from './settingsStore'
 import { useSystem } from './systemStore'
 
@@ -29,6 +30,9 @@ interface QueueState {
   stopAll: () => void
   applyUpdate: (u: JobUpdate) => void
   dismissNotice: () => void
+  setImageOverride: (id: string, config: ImageJobConfig | undefined) => void
+  setVideoOverride: (id: string, config: VideoJobConfig | undefined) => void
+  setTrim: (id: string, trim: TrimRange | undefined) => void
 }
 
 const idleProgress = (jobId: string) => ({ jobId, percent: 0, estimatedSecondsRemaining: 0, humanReadableEta: formatEta(Number.NaN) })
@@ -46,6 +50,7 @@ function resetJob(job: MediaJob): MediaJob {
     outputPath: undefined,
     note: undefined,
     error: undefined,
+    errorDetail: undefined,
     startedAt: undefined,
     finishedAt: undefined,
   }
@@ -151,11 +156,12 @@ export const useQueue = create<QueueState>()((set, get) => ({
       requests.push({
         id: job.id,
         filePath: job.filePath,
+        relativeDir: job.relativeDir,
         type: job.type,
         sizeBytes: job.sizeBytes,
         info: job.info,
-        imageConfig: job.type === 'image' ? settings.image : undefined,
-        videoConfig: job.type === 'video' ? settings.video : undefined,
+        imageConfig: job.type === 'image' ? effectiveImageConfig(job, settings.image) : undefined,
+        videoConfig: job.type === 'video' ? effectiveVideoConfig(job, settings.video) : undefined,
         output: settings.output,
       })
     }
@@ -189,10 +195,20 @@ export const useQueue = create<QueueState>()((set, get) => ({
           outputPath: u.outputPath ?? j.outputPath,
           note: u.note ?? j.note,
           error: u.error,
+          errorDetail: u.errorDetail,
           finishedAt: finished ? Date.now() : j.finishedAt,
         }
       }),
     })),
 
   dismissNotice: () => set({ notice: null }),
+
+  setImageOverride: (id, config) => set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, imageOverride: config } : j)) })),
+  setVideoOverride: (id, config) => set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, videoOverride: config } : j)) })),
+  setTrim: (id, trim) => set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, trim } : j)) })),
 }))
+
+/** The job currently selected in the queue. */
+export function useSelectedJob(): MediaJob | undefined {
+  return useQueue((s) => s.jobs.find((j) => j.id === s.selectedId))
+}

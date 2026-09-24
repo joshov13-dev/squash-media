@@ -4,6 +4,7 @@ import type { ImageInfo, ImageJobConfig, ImagePreviewResult, MediaJob } from '@s
 import { api } from '@renderer/lib/api'
 import { cn } from '@renderer/lib/cn'
 import { formatName } from '@renderer/lib/describe'
+import { effectiveImageConfig } from '@renderer/lib/effective'
 import { useSettings } from '@renderer/store/settingsStore'
 import { Segmented } from '../ui/controls'
 import { ComparePane } from './ComparePane'
@@ -110,7 +111,8 @@ function Stat({ label, children, className }: { label: string; children: React.R
 }
 
 export function ImagePreview({ job }: { job: MediaJob & { info: ImageInfo } }) {
-  const config = useSettings((s) => s.image)
+  const shared = useSettings((s) => s.image)
+  const config = effectiveImageConfig(job, shared)
   const hasResult = (job.status === 'completed' || job.status === 'skipped') && !!job.outputPath
   const [view, setView] = useState<'live' | 'saved'>(hasResult ? 'saved' : 'live')
   useEffect(() => setView(hasResult ? 'saved' : 'live'), [job.id, hasResult])

@@ -2,11 +2,15 @@ import { FolderPlus, ListChecks, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { formatBytes } from '@shared/format'
 import { api } from '@renderer/lib/api'
 import { FINISHED, useQueue } from '@renderer/store/queueStore'
+import { useSettings } from '@renderer/store/settingsStore'
+import { whereFilesGo } from '../HelpPopover'
 import { Button, IconButton } from '../ui/controls'
+import { FinishBanner } from './FinishBanner'
 import { QueueItem } from './QueueItem'
 
 function EmptyQueue() {
   const addPaths = useQueue((s) => s.addPaths)
+  const output = useSettings((s) => s.output)
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5 px-8 text-center">
       <svg width="112" height="72" viewBox="0 0 112 72" aria-hidden="true">
@@ -17,12 +21,24 @@ function EmptyQueue() {
       </svg>
       <div className="space-y-1.5">
         <p className="font-display text-[15px] font-semibold text-ink">Drop photos and videos here</p>
-        <p className="text-[12px] leading-relaxed text-ink-3">
+        <p className="text-[12px] leading-relaxed text-balance text-ink-3">
           JPEG, PNG, WebP, AVIF, TIFF and BMP photos.
           <br />
           MP4, MKV, MOV, WebM, AVI and other videos. Folders work too.
         </p>
       </div>
+      <ol className="w-full max-w-72 space-y-1.5 text-left text-[12px] text-ink-2">
+        <li className="flex gap-2.5">
+          <span className="num font-semibold text-ember">1</span>Add your files.
+        </li>
+        <li className="flex gap-2.5">
+          <span className="num font-semibold text-ember">2</span>Click one to compare before and after.
+        </li>
+        <li className="flex gap-2.5">
+          <span className="num font-semibold text-ember">3</span>Press Compress at the top right.
+        </li>
+      </ol>
+      <p className="max-w-72 text-[12px] leading-relaxed text-balance text-ink-3">{whereFilesGo(output)}</p>
       <div className="flex gap-2">
         <Button onClick={async () => void addPaths(await api.pickFiles())}>
           <Plus size={15} /> Add files
@@ -90,6 +106,7 @@ export function QueuePanel() {
         </div>
       )}
 
+      <FinishBanner />
       {notice && (
         <button
           type="button"

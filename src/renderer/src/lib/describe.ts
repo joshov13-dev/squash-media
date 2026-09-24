@@ -1,5 +1,5 @@
 import { CODECS, ENCODER_LABELS, IMAGE_FORMAT_LABELS, resolveImageFormat } from '@shared/codecs'
-import { formatBytes, formatDuration } from '@shared/format'
+import { formatBytes, formatDuration, formatTimecode } from '@shared/format'
 import type { HardwareProfile, ImageInfo, ImageJobConfig, MediaJob, VideoInfo, VideoJobConfig } from '@shared/types'
 
 const FORMAT_NAMES: Record<string, string> = {
@@ -52,6 +52,11 @@ export function describeVideoPlan(info: VideoInfo, c: VideoJobConfig, hw: Hardwa
   else if (c.rateControl === 'targetSize') parts.push(`under ${formatBytes(c.targetMaxSizeBytes, 0)}`)
   else parts.push(`${c.targetBitrateKbps} kbps`)
   if (c.scale !== 'original' && Math.min(info.width, info.height) > Number.parseInt(c.scale)) parts.push(c.scale)
+  if (c.trimStart !== undefined || c.trimEnd !== undefined) {
+    const start = c.trimStart ?? 0
+    const end = c.trimEnd ?? info.durationSeconds
+    parts.push(`${formatTimecode(start)} to ${formatTimecode(end)}`)
+  }
   parts.push(c.container.toUpperCase())
   return parts.join(' · ')
 }

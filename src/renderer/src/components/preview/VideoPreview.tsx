@@ -5,6 +5,7 @@ import type { MediaJob, VideoInfo, VideoJobConfig, VideoPreviewResult } from '@s
 import { api } from '@renderer/lib/api'
 import { cn } from '@renderer/lib/cn'
 import { describeVideoPlan, videoCodecName } from '@renderer/lib/describe'
+import { effectiveVideoConfig } from '@renderer/lib/effective'
 import { useQueue } from '@renderer/store/queueStore'
 import { useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
@@ -31,7 +32,8 @@ function Fact({ label, children, className }: { label: string; children: React.R
 }
 
 export function VideoPreview({ job }: { job: MediaJob & { info: VideoInfo } }) {
-  const config = useSettings((s) => s.video)
+  const shared = useSettings((s) => s.video)
+  const config = effectiveVideoConfig(job, shared)
   const hardware = useSystem((s) => s.hardware)
   const thumb = useQueue((s) => s.thumbnails[job.id])
   const configKey = JSON.stringify(config)
@@ -81,7 +83,7 @@ export function VideoPreview({ job }: { job: MediaJob & { info: VideoInfo } }) {
   }
 
   const r = preview?.result
-  const alreadyUnder = config.rateControl === 'targetSize' && job.sizeBytes <= config.targetMaxSizeBytes
+  const alreadyUnder = config.rateControl === 'targetSize' && job.sizeBytes <= config.targetMaxSizeBytes && !job.trim
   const pct = r ? savingsPercent(job.sizeBytes, r.estimatedBytes) : 0
   const audio = info.audioCodec ? `${info.audioCodec.toUpperCase()} ${info.audioChannels ?? ''}ch` : 'No audio'
 

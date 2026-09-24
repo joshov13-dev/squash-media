@@ -25,8 +25,17 @@ import {
   type CalibrationStore,
 } from './etaCalculator'
 import { compressImage } from './imageProcessor'
-import { imageOutputExtension, planOutputPath, samePath, tempPathFor, videoOutputExtension, type OutputPlan } from './outputPaths'
-import { encodeVideo, planWorkload, resolveEncoder } from './videoProcessor'
+import { friendlyError } from './friendlyErrors'
+import {
+  imageOutputExtension,
+  planOutputPath,
+  samePath,
+  tempPathFor,
+  uniquePath,
+  videoOutputExtension,
+  type OutputPlan,
+} from './outputPaths'
+import { encodeVideo, planWorkload, resolveEncoder, trimWindow } from './videoProcessor'
 
 interface QueueItem {
   req: JobRequest
@@ -43,6 +52,10 @@ interface QueueItem {
   fps?: number
   speed?: number
   phase?: string
+  /** Size on disk after the job, for run totals. */
+  outputBytes?: number
+  /** Output path reserved for this job in the current run. */
+  claimedPath?: string
 }
 
 export interface JobQueueDeps {
@@ -63,6 +76,8 @@ export class JobQueue {
   private runningVideos = 0
   private runStartedAt = 0
   private ticker: NodeJS.Timeout | null = null
+  /** Output paths handed out in this run, so two jobs never share one. */
+  private claimed = new Set<string>()
 
   constructor(private readonly deps: JobQueueDeps) {}
 
@@ -71,6 +86,7 @@ export class JobQueue {
     // A fresh run once everything before has finished.
     if (this.items.every((i) => FINISHED.includes(i.status))) {
       this.items = []
+      this.claimed.clear()
       this.runStartedAt = Date.now()
     }
     for (const req of requests) {
@@ -91,6 +107,8 @@ export class JobQueue {
       this.emit(item, true)
     }
     this.startTicker()
+    // Report "active" straight away, even if the run finishes before the next tick.
+    this.emitStats()
     this.pump()
   }
 
@@ -164,11 +182,14 @@ export class JobQueue {
       else await this.runVideo(item)
     } catch (e) {
       if (e instanceof AbortError || item.controller.signal.aborted) {
+        this.release(item)
         item.status = 'cancelled'
         this.emit(item, true)
       } else {
+        this.release(item)
         item.status = 'failed'
-        this.emit(item, true, { error: e instanceof Error ? e.message : String(e) })
+        const { message, detail } = friendlyError(e)
+        this.emit(item, true, { error: message, errorDetail: detail })
       }
     } finally {
       item.controller = undefined
@@ -191,7 +212,7 @@ export class JobQueue {
     this.deps.calibration.record(imageKey(format, config.mode), elapsed / base)
 
     const ext = imageOutputExtension(req.filePath, info.format, result.format)
-    const plan = planOutputPath(req.filePath, ext, req.output)
+    const plan = this.claim(item, planOutputPath(req.filePath, ext, req.output, req.relativeDir))
     const larger = result.data.length >= result.originalBytes && req.output.keepOriginalIfLarger
     if (result.unchanged || larger) {
       const note = result.unchanged ? result.note : 'Original kept: compressed file was larger'
@@ -210,7 +231,9 @@ export class JobQueue {
     let config = req.videoConfig!
     const info = req.info as VideoInfo
     const sourceStat = await stat(req.filePath)
-    if (config.rateControl === 'targetSize' && req.sizeBytes <= config.targetMaxSizeBytes) {
+    // A trimmed clip is a new file the user asked for, so never swap it for the original.
+    const trimmed = trimWindow(info, config).trimmed
+    if (config.rateControl === 'targetSize' && req.sizeBytes <= config.targetMaxSizeBytes && !trimmed) {
       // Encoding up to the target would only make the file bigger.
       if (req.output.keepOriginalIfLarger) {
         await this.keepOriginal(item, sourceStat, 'Already under the target size')
@@ -218,7 +241,7 @@ export class JobQueue {
       }
       config = { ...config, targetMaxSizeBytes: req.sizeBytes }
     }
-    const plan = planOutputPath(req.filePath, videoOutputExtension(config.container), req.output)
+    const plan = this.claim(item, planOutputPath(req.filePath, videoOutputExtension(config.container), req.output, req.relativeDir))
     const temp = tempPathFor(plan.finalPath, req.id)
     await mkdir(dirname(plan.finalPath), { recursive: true })
 
@@ -248,7 +271,7 @@ export class JobQueue {
         this.deps.calibration.record(calibrationKey(config.codec, result.encoder.mode, config.preset), raw / result.measuredFps)
       }
 
-      const larger = result.bytes >= req.sizeBytes && req.output.keepOriginalIfLarger
+      const larger = result.bytes >= req.sizeBytes && req.output.keepOriginalIfLarger && !trimmed
       if (larger) {
         await rm(temp, { force: true })
         await this.keepOriginal(item, sourceStat, 'Original kept: compressed file was larger')
@@ -260,6 +283,26 @@ export class JobQueue {
       await rm(temp, { force: true }).catch(() => undefined)
       throw e
     }
+  }
+
+  private pathKey(p: string): string {
+    return process.platform === 'win32' || process.platform === 'darwin' ? p.toLowerCase() : p
+  }
+
+  /** Reserve the output path for this run, numbering it if another job has it. */
+  private claim(item: QueueItem, plan: OutputPlan): OutputPlan {
+    // Replacing the source itself is always allowed.
+    const finalPath = samePath(plan.finalPath, item.req.filePath)
+      ? plan.finalPath
+      : uniquePath(plan.finalPath, (p) => this.claimed.has(this.pathKey(p)))
+    this.claimed.add(this.pathKey(finalPath))
+    item.claimedPath = finalPath
+    return { ...plan, finalPath }
+  }
+
+  private release(item: QueueItem): void {
+    if (item.claimedPath) this.claimed.delete(this.pathKey(item.claimedPath))
+    item.claimedPath = undefined
   }
 
   /** Move the temp file into place. Returns a note if something needs saying. */
@@ -284,9 +327,10 @@ export class JobQueue {
     let outputPath: string | undefined
     // In folder mode the destination should still end up with every file.
     if (req.output.mode === 'folder' && req.output.folder) {
-      const dest = join(req.output.folder, basename(req.filePath))
+      const folder = req.output.keepFolderStructure && req.relativeDir ? join(req.output.folder, req.relativeDir) : req.output.folder
+      const dest = join(folder, basename(req.filePath))
       if (!samePath(dest, req.filePath)) {
-        await mkdir(req.output.folder, { recursive: true })
+        await mkdir(folder, { recursive: true })
         await copyFile(req.filePath, dest)
         if (req.output.preserveTimestamps) await utimes(dest, sourceStat.atime, sourceStat.mtime).catch(() => undefined)
         outputPath = dest
@@ -295,6 +339,7 @@ export class JobQueue {
     item.status = 'skipped'
     item.percent = 100
     item.remaining = 0
+    item.outputBytes = req.sizeBytes
     this.emit(item, true, { compressedSizeBytes: req.sizeBytes, outputPath, note })
   }
 
@@ -302,6 +347,7 @@ export class JobQueue {
     item.status = 'completed'
     item.percent = 100
     item.remaining = 0
+    item.outputBytes = bytes
     this.emit(item, true, { compressedSizeBytes: bytes, outputPath, note })
   }
 
@@ -350,7 +396,13 @@ export class JobQueue {
     let completed = 0
     let failed = 0
     let running = 0
+    let originalBytes = 0
+    let outputBytes = 0
     for (const item of this.items) {
+      if (item.outputBytes !== undefined) {
+        originalBytes += item.req.sizeBytes
+        outputBytes += item.outputBytes
+      }
       const finished = FINISHED.includes(item.status)
       weightTotal += item.weight
       weightDone += finished ? item.weight : (item.weight * item.percent) / 100
@@ -375,6 +427,8 @@ export class JobQueue {
       estimatedSecondsRemaining: Math.round(eta),
       humanReadableEta: active ? formatEta(eta) : '',
       elapsedSeconds: this.runStartedAt ? Math.round((Date.now() - this.runStartedAt) / 1000) : 0,
+      originalBytes,
+      outputBytes,
     }
   }
 

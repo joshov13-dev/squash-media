@@ -209,3 +209,66 @@ describe('JobQueue', () => {
     expect(progress.some((x) => x.progress.humanReadableEta !== '')).toBe(true)
   })
 })
+
+describe('output naming in a run', () => {
+  it('numbers clashing names and keeps subfolders', async () => {
+    const { uniquePath } = await import('../src/main/services/outputPaths')
+    const taken = new Set([join('/o', 'a.webp'), join('/o', 'a (2).webp')])
+    expect(uniquePath(join('/o', 'a.webp'), (p) => taken.has(p))).toBe(join('/o', 'a (3).webp'))
+    expect(uniquePath(join('/o', 'b.webp'), (p) => taken.has(p))).toBe(join('/o', 'b.webp'))
+    const plan = planOutputPath(join('/in', 'Trip', 'Day1', 'x.jpg'), '.jpg', { ...DEFAULT_OUTPUT, mode: 'folder', folder: '/out' }, join('Trip', 'Day1'))
+    expect(plan.finalPath).toBe(join('/out', 'Trip', 'Day1', 'x.jpg'))
+    const flat = planOutputPath(join('/in', 'Trip', 'Day1', 'x.jpg'), '.jpg', { ...DEFAULT_OUTPUT, mode: 'folder', folder: '/out', keepFolderStructure: false }, join('Trip', 'Day1'))
+    expect(flat.finalPath).toBe(join('/out', 'x.jpg'))
+  })
+
+  it('never lets two files in one run overwrite each other', async () => {
+    const dir = await tempDir()
+    const png = join(dir, 'pic.png')
+    const jpg = join(dir, 'pic.jpg')
+    await sharp({ create: { width: 200, height: 100, channels: 3, background: '#335577' } }).png({ compressionLevel: 0 }).toFile(png)
+    await sharp({ create: { width: 200, height: 100, channels: 3, background: '#775533' } }).jpeg({ quality: 100 }).toFile(jpg)
+    const { queue, waitFor } = harness()
+    await queue.enqueue([
+      await imageJob(png, 'p', DEFAULT_OUTPUT, { format: 'webp' }),
+      await imageJob(jpg, 'j', DEFAULT_OUTPUT, { format: 'webp' }),
+    ])
+    const done = await waitFor(['p', 'j'])
+    const outputs = [done.get('p')!.outputPath, done.get('j')!.outputPath].sort()
+    expect(outputs).toEqual([join(dir, 'pic_compressed (2).webp'), join(dir, 'pic_compressed.webp')])
+  })
+
+  it('explains failures in plain words', async () => {
+    const { friendlyError } = await import('../src/main/services/friendlyErrors')
+    expect(friendlyError(new Error("EBUSY: resource busy or locked, rename 'x'")).message).toMatch(/Another program/)
+    expect(friendlyError(new Error('ENOSPC: no space left on device')).message).toMatch(/disk is full/)
+    expect(friendlyError(new Error('OpenEncodeSessionEx failed: unsupported device (2)')).message).toMatch(/NVIDIA/)
+    const odd = friendlyError(new Error('weird thing'))
+    expect(odd.message).toContain('weird thing')
+    expect(odd.detail).toBe('weird thing')
+  })
+})
+
+describe('adding folders', () => {
+  it('remembers where each file sat inside a dropped folder', async () => {
+    const { mkdir, writeFile } = await import('node:fs/promises')
+    const { resolveMedia } = await import('../src/main/services/mediaResolver')
+    const dir = await tempDir()
+    const trip = join(dir, 'Trip')
+    await mkdir(join(trip, 'Day1'), { recursive: true })
+    await mkdir(join(trip, 'node_modules'), { recursive: true })
+    await sharp({ create: { width: 10, height: 10, channels: 3, background: '#000' } }).jpeg().toFile(join(trip, 'top.jpg'))
+    await sharp({ create: { width: 10, height: 10, channels: 3, background: '#000' } }).jpeg().toFile(join(trip, 'Day1', 'a.jpg'))
+    await sharp({ create: { width: 10, height: 10, channels: 3, background: '#000' } }).jpeg().toFile(join(trip, 'node_modules', 'skip.jpg'))
+    await writeFile(join(trip, 'code.ts'), 'export const x = 1\n')
+    await writeFile(join(trip, 'notes.txt'), 'hello')
+
+    const loose = join(dir, 'loose.jpg')
+    await sharp({ create: { width: 10, height: 10, channels: 3, background: '#000' } }).jpeg().toFile(loose)
+
+    const { files, rejected } = await resolveMedia([trip, loose])
+    const byName = Object.fromEntries(files.map((f) => [f.fileName, f.relativeDir]))
+    expect(byName).toEqual({ 'a.jpg': join('Trip', 'Day1'), 'top.jpg': 'Trip', 'loose.jpg': undefined })
+    expect(rejected).toEqual([])
+  })
+})

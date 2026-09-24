@@ -1,4 +1,5 @@
 import type {
+  AppInfo,
   HardwareProfile,
   ImageOriginal,
   ImagePreviewRequest,
@@ -11,9 +12,11 @@ import type {
   SystemLoad,
   VideoPreviewRequest,
   VideoPreviewResult,
+  WhenDone,
 } from './types'
 
 export const IPC = {
+  appInfo: 'app:info',
   hardware: 'hardware:get',
   openFiles: 'dialog:open-files',
   openFolder: 'dialog:open-folder',
@@ -29,11 +32,13 @@ export const IPC = {
   cancelAll: 'queue:cancel-all',
   revealInFolder: 'shell:reveal',
   openPath: 'shell:open',
+  powerAction: 'power:action',
   // main -> renderer
   jobUpdate: 'queue:update',
   queueStats: 'queue:stats',
   systemLoad: 'system:load',
   openPaths: 'app:open-paths',
+  takeOpenPaths: 'app:take-open-paths',
 } as const
 
 export type Unsubscribe = () => void
@@ -41,6 +46,7 @@ export type Unsubscribe = () => void
 /** The API exposed to the renderer as `window.api`. */
 export interface SquashApi {
   platform: NodeJS.Platform
+  getAppInfo(): Promise<AppInfo>
   getHardwareProfile(): Promise<HardwareProfile>
   pickFiles(): Promise<string[]>
   pickFolder(): Promise<string | null>
@@ -58,8 +64,12 @@ export interface SquashApi {
   cancelAll(): Promise<void>
   revealInFolder(path: string): Promise<void>
   openPath(path: string): Promise<void>
+  /** Put the PC to sleep or shut it down once the queue is finished. */
+  powerAction(action: Exclude<WhenDone, 'nothing'>): Promise<void>
   onJobUpdate(cb: (update: JobUpdate) => void): Unsubscribe
   onQueueStats(cb: (stats: QueueStats) => void): Unsubscribe
   onSystemLoad(cb: (load: SystemLoad) => void): Unsubscribe
   onOpenPaths(cb: (paths: string[]) => void): Unsubscribe
+  /** Paths opened before the window was ready (from the command line or Explorer). */
+  takeOpenPaths(): Promise<string[]>
 }

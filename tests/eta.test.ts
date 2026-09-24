@@ -39,6 +39,7 @@ const workload = (patch: Partial<VideoWorkload> = {}): VideoWorkload => ({
   outputWidth: 1920,
   outputHeight: 1080,
   outputFps: 30,
+  durationSeconds: 60,
   passes: 1,
   ...patch,
 })
@@ -164,5 +165,20 @@ describe('image throughput model', () => {
     expect(predictImageSeconds(12, 'jpeg', 'quality', 2)).toBeLessThan(jpeg12)
     expect(imageLaneSpeedup(1)).toBe(1)
     expect(imageLaneSpeedup(4)).toBe(2.5)
+  })
+})
+
+describe('time codes', () => {
+  it('formats and parses trim times', async () => {
+    const { formatTimecode, parseTimecode } = await import('@shared/format')
+    expect(formatTimecode(65.5)).toBe('1:05.5')
+    expect(formatTimecode(3723)).toBe('1:02:03')
+    expect(formatTimecode(0)).toBe('0:00')
+    expect(parseTimecode('90')).toBe(90)
+    expect(parseTimecode('1:30.5')).toBe(90.5)
+    expect(parseTimecode('0:01:30')).toBe(90)
+    expect(parseTimecode('1,5')).toBe(1.5)
+    expect(parseTimecode('abc')).toBeNull()
+    expect(parseTimecode('1::2')).toBeNull()
   })
 })

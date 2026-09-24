@@ -35,11 +35,13 @@
       {
         from: 'binaries/win',
         to: 'bin',
-        filter: ['ffmpeg.exe', 'ffprobe.exe', 'FFMPEG-LICENSE.txt'],
+        filter: ['ffmpeg.exe', 'ffprobe.exe', '*.dll', 'FFMPEG-LICENSE.txt'],
       },
     ],
   },
   nsis: {
+    // Right-click "Compress with SquashForge" and the "Send to" entry.
+    include: 'build/installer.nsh',
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,

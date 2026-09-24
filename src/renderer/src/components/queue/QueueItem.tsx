@@ -5,6 +5,7 @@ import type { MediaJob } from '@shared/types'
 import { api } from '@renderer/lib/api'
 import { cn } from '@renderer/lib/cn'
 import { describeImagePlan, describeSource, describeVideoPlan } from '@renderer/lib/describe'
+import { effectiveImageConfig, effectiveVideoConfig } from '@renderer/lib/effective'
 import { ACTIVE, useQueue } from '@renderer/store/queueStore'
 import { useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
@@ -31,8 +32,17 @@ function PlanLine({ job }: { job: MediaJob }) {
   const image = useSettings((s) => s.image)
   const video = useSettings((s) => s.video)
   const hardware = useSystem((s) => s.hardware)
-  const plan = job.info.kind === 'image' ? describeImagePlan(job.info, image) : describeVideoPlan(job.info, video, hardware)
-  return <span className="truncate text-ink-3">→ {plan}</span>
+  const plan =
+    job.info.kind === 'image'
+      ? describeImagePlan(job.info, effectiveImageConfig(job, image))
+      : describeVideoPlan(job.info, effectiveVideoConfig(job, video), hardware)
+  const own = job.type === 'image' ? job.imageOverride : job.videoOverride
+  return (
+    <span className="truncate text-ink-3">
+      → {plan}
+      {own && <span className="text-ember-2"> · own settings</span>}
+    </span>
+  )
 }
 
 function StatusLine({ job }: { job: MediaJob }) {
@@ -69,7 +79,7 @@ function StatusLine({ job }: { job: MediaJob }) {
       return <span className="truncate text-ink-3">{job.note ?? 'Original kept'}</span>
     case 'failed':
       return (
-        <span className="line-clamp-2 text-brick" title={job.error}>
+        <span className="line-clamp-3 text-brick" title={job.errorDetail ?? job.error}>
           {job.error ?? 'Failed'}
         </span>
       )
@@ -100,6 +110,8 @@ export const QueueItem = memo(function QueueItem({ job, selected }: { job: Media
       role="option"
       aria-selected={selected}
       onClick={() => select(job.id)}
+      onDoubleClick={() => job.outputPath && void api.openPath(job.outputPath)}
+      title={job.outputPath ? 'Double-click to open the compressed file' : undefined}
       className={cn(
         'group relative mx-2 flex cursor-default gap-3 rounded-lg px-2.5 py-2.5 transition-colors',
         selected ? 'bg-raised' : 'hover:bg-raised/55',

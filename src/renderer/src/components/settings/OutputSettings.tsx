@@ -1,11 +1,13 @@
 import { FolderOpen } from 'lucide-react'
 import { api } from '@renderer/lib/api'
 import { useSettings } from '@renderer/store/settingsStore'
-import { Button, Field, Section, Segmented, Toggle } from '../ui/controls'
+import { Button, Field, IconButton, Section, Segmented, Toggle } from '../ui/controls'
+import { RotateCcw } from 'lucide-react'
 
 export function OutputSettings() {
   const output = useSettings((s) => s.output)
   const setOutput = useSettings((s) => s.setOutput)
+  const resetOutput = useSettings((s) => s.resetOutput)
   const suffix = output.suffix.trim() || '_compressed'
 
   const chooseFolder = async (): Promise<void> => {
@@ -15,7 +17,14 @@ export function OutputSettings() {
 
   return (
     <div className="pt-1">
-      <Section title="Save to">
+      <Section
+        title="Save to"
+        aside={
+          <IconButton label="Back to the default settings" onClick={resetOutput}>
+            <RotateCcw size={14} />
+          </IconButton>
+        }
+      >
         <Segmented
           value={output.mode}
           onChange={(mode) => {
@@ -40,16 +49,24 @@ export function OutputSettings() {
           </Field>
         )}
         {output.mode === 'folder' && (
-          <Field label="Destination" hint="Files keep their names. A file compressed into its own folder gets the name ending instead.">
-            <div className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate rounded-md bg-ground px-2.5 py-1.5 text-ink-2" title={output.folder ?? ''}>
-                {output.folder ?? 'No folder chosen'}
-              </span>
-              <Button size="sm" onClick={() => void chooseFolder()}>
-                <FolderOpen size={13} /> Choose
-              </Button>
-            </div>
-          </Field>
+          <>
+            <Field label="Destination" hint="Files keep their names. If two files would end up with the same name, the second gets (2) added.">
+              <div className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate rounded-md bg-ground px-2.5 py-1.5 text-ink-2" title={output.folder ?? ''}>
+                  {output.folder ?? 'No folder chosen'}
+                </span>
+                <Button size="sm" onClick={() => void chooseFolder()}>
+                  <FolderOpen size={13} /> Choose
+                </Button>
+              </div>
+            </Field>
+            <Toggle
+              label="Keep subfolders"
+              hint="When you add a whole folder, its subfolders are recreated inside the destination."
+              checked={output.keepFolderStructure}
+              onChange={(keepFolderStructure) => setOutput({ keepFolderStructure })}
+            />
+          </>
         )}
         {output.mode === 'overwrite' && (
           <p className="text-[12px] leading-relaxed text-ink-3">

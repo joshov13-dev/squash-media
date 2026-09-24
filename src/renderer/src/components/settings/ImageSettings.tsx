@@ -1,7 +1,9 @@
 import { KB, MB } from '@shared/presets'
 import type { ImageJobConfig } from '@shared/types'
-import { useSettings } from '@renderer/store/settingsStore'
+import { useImageEditor } from '@renderer/store/editors'
+import { allImagePresets, useSettings } from '@renderer/store/settingsStore'
 import { Field, NumberInput, Section, Segmented, Select, Slider, Toggle } from '../ui/controls'
+import { SettingsHeader } from './SettingsHeader'
 
 const QUALITY_HINTS: Record<ImageJobConfig['format'], string> = {
   original: 'Applies each format’s own quality scale. Around 80 is visually lossless for most photos.',
@@ -21,9 +23,7 @@ const LOSSLESS_HINTS: Record<ImageJobConfig['format'], string> = {
 
 const QUICK_TARGETS = [200 * KB, 500 * KB, 1 * MB, 2 * MB]
 
-function TargetSize() {
-  const image = useSettings((s) => s.image)
-  const setImage = useSettings((s) => s.setImage)
+function TargetSize({ image, setImage }: { image: ImageJobConfig; setImage: (patch: Partial<ImageJobConfig>) => void }) {
   const inMb = image.targetMaxSizeBytes >= MB
   const unit = inMb ? MB : KB
   const value = Math.round((image.targetMaxSizeBytes / unit) * 100) / 100
@@ -60,13 +60,27 @@ function TargetSize() {
 }
 
 export function ImageSettings() {
-  const image = useSettings((s) => s.image)
-  const setImage = useSettings((s) => s.setImage)
-  const setResize = useSettings((s) => s.setImageResize)
+  const editor = useImageEditor()
+  const custom = useSettings((s) => s.customImagePresets)
+  const savePreset = useSettings((s) => s.saveImagePreset)
+  const deletePreset = useSettings((s) => s.deletePreset)
+  const { config: image, set: setImage, setResize } = editor
   const showProgressive = image.format === 'jpeg' || image.format === 'original'
 
   return (
     <div className="pt-1">
+      <SettingsHeader
+        kind="photo"
+        job={editor.job}
+        scope={editor.scope}
+        onScope={editor.setScope}
+        presets={allImagePresets(custom)}
+        presetId={editor.presetId}
+        onPreset={editor.applyPreset}
+        onReset={editor.reset}
+        onSavePreset={savePreset}
+        onDeletePreset={deletePreset}
+      />
       <Section title="Format">
         <Segmented
           value={image.format}
@@ -97,7 +111,7 @@ export function ImageSettings() {
           </Field>
         )}
         {image.mode === 'lossless' && <p className="text-[12px] leading-relaxed text-ink-3">{LOSSLESS_HINTS[image.format]}</p>}
-        {image.mode === 'targetSize' && <TargetSize />}
+        {image.mode === 'targetSize' && <TargetSize image={image} setImage={setImage} />}
         {showProgressive && image.mode !== 'lossless' && (
           <Toggle label="Progressive JPEG" hint="Loads in passes on the web; often slightly smaller." checked={image.progressive} onChange={(progressive) => setImage({ progressive })} />
         )}

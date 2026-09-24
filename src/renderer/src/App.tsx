@@ -1,6 +1,7 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { useEffect, useRef, useState } from 'react'
 import { api } from './lib/api'
+import { PowerCountdown } from './components/PowerCountdown'
 import { TopBar } from './components/TopBar'
 import { StatusBar } from './components/hardware/StatusBar'
 import { PreviewPanel } from './components/preview/PreviewPanel'
@@ -13,12 +14,15 @@ function useBridge(): void {
   useEffect(() => {
     const system = useSystem.getState()
     void api.getHardwareProfile().then(system.setHardware)
+    void api.getAppInfo().then(system.setApp)
     const offs = [
       api.onJobUpdate((u) => useQueue.getState().applyUpdate(u)),
       api.onQueueStats((s) => useSystem.getState().setStats(s)),
       api.onSystemLoad((l) => useSystem.getState().setLoad(l)),
       api.onOpenPaths((paths) => void useQueue.getState().addPaths(paths)),
     ]
+    // Subscribe first, then collect anything opened before the window was ready.
+    void api.takeOpenPaths().then((paths) => useQueue.getState().addPaths(paths))
     return () => offs.forEach((off) => off())
   }, [])
 }
@@ -111,6 +115,7 @@ export function App() {
         </div>
         <StatusBar />
       </div>
+      <PowerCountdown />
       {dropping && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-ground/80">
           <div className="rounded-2xl bg-raised px-10 py-8 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]">

@@ -33,10 +33,13 @@ interface SettingsState {
   saveVideoPreset: (name: string) => void
   deletePreset: (id: string) => void
   setTab: (tab: SettingsTab) => void
+  resetImage: () => void
+  resetVideo: () => void
+  resetOutput: () => void
 }
 
 /** Keep codec, container and quality scale consistent after any change. */
-function normaliseVideo(prev: VideoJobConfig, next: VideoJobConfig): VideoJobConfig {
+export function normaliseVideo(prev: VideoJobConfig, next: VideoJobConfig): VideoJobConfig {
   const v = { ...next }
   if (!isCodecAllowedInContainer(v.codec, v.container)) {
     // Prefer changing the container when the user picked a codec, and vice versa.
@@ -59,7 +62,7 @@ export const useSettings = create<SettingsState>()(
       video: DEFAULT_VIDEO_CONFIG,
       output: DEFAULT_OUTPUT,
       imagePresetId: IMAGE_PRESETS[0].id,
-      videoPresetId: null,
+      videoPresetId: VIDEO_PRESETS[0].id,
       customImagePresets: [],
       customVideoPresets: [],
       tab: 'image',
@@ -96,6 +99,9 @@ export const useSettings = create<SettingsState>()(
           videoPresetId: s.videoPresetId === id ? null : s.videoPresetId,
         })),
       setTab: (tab) => set({ tab }),
+      resetImage: () => set({ image: DEFAULT_IMAGE_CONFIG, imagePresetId: IMAGE_PRESETS[0].id }),
+      resetVideo: () => set((s) => ({ video: { ...DEFAULT_VIDEO_CONFIG, encoderMode: s.video.encoderMode }, videoPresetId: VIDEO_PRESETS[0].id })),
+      resetOutput: () => set({ output: DEFAULT_OUTPUT }),
     }),
     {
       name: 'squashforge-settings',

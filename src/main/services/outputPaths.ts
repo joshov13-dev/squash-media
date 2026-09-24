@@ -24,7 +24,7 @@ export function videoOutputExtension(container: VideoContainer): string {
   return CONTAINER_EXTENSIONS[container]
 }
 
-export function planOutputPath(sourcePath: string, outputExt: string, settings: OutputSettings): OutputPlan {
+export function planOutputPath(sourcePath: string, outputExt: string, settings: OutputSettings, relativeDir?: string): OutputPlan {
   const dir = dirname(sourcePath)
   const base = basename(sourcePath, extname(sourcePath))
   const suffix = settings.suffix.trim() || '_compressed'
@@ -33,11 +33,28 @@ export function planOutputPath(sourcePath: string, outputExt: string, settings: 
     return { finalPath: join(dir, base + outputExt), replacesSource: true }
   }
   if (settings.mode === 'folder' && settings.folder) {
-    let finalPath = join(settings.folder, base + outputExt)
-    if (samePath(finalPath, sourcePath)) finalPath = join(settings.folder, base + suffix + outputExt)
+    // Recreate the dropped folder's layout so same-named files cannot collide.
+    const folder = settings.keepFolderStructure && relativeDir ? join(settings.folder, relativeDir) : settings.folder
+    let finalPath = join(folder, base + outputExt)
+    if (samePath(finalPath, sourcePath)) finalPath = join(folder, base + suffix + outputExt)
     return { finalPath, replacesSource: false }
   }
   return { finalPath: join(dir, base + suffix + outputExt), replacesSource: false }
+}
+
+/**
+ * "photo.webp" -> "photo (2).webp" until `taken` says the name is free.
+ * Stops two files in one run (say photo.png and photo.jpg, both saved as
+ * WebP) from writing over each other.
+ */
+export function uniquePath(path: string, taken: (candidate: string) => boolean): string {
+  if (!taken(path)) return path
+  const ext = extname(path)
+  const stem = path.slice(0, path.length - ext.length)
+  for (let i = 2; ; i++) {
+    const candidate = `${stem} (${i})${ext}`
+    if (!taken(candidate)) return candidate
+  }
 }
 
 /** Hidden temp file next to the final output so the last step is a same-volume rename. */

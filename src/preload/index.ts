@@ -9,6 +9,7 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): Unsubscribe {
 
 const api: SquashApi = {
   platform: process.platform,
+  getAppInfo: () => ipcRenderer.invoke(IPC.appInfo),
   getHardwareProfile: () => ipcRenderer.invoke(IPC.hardware),
   pickFiles: () => ipcRenderer.invoke(IPC.openFiles),
   pickFolder: () => ipcRenderer.invoke(IPC.openFolder),
@@ -25,10 +26,12 @@ const api: SquashApi = {
   cancelAll: () => ipcRenderer.invoke(IPC.cancelAll),
   revealInFolder: (path) => ipcRenderer.invoke(IPC.revealInFolder, path),
   openPath: (path) => ipcRenderer.invoke(IPC.openPath, path),
+  powerAction: (action) => ipcRenderer.invoke(IPC.powerAction, action),
   onJobUpdate: (cb) => subscribe(IPC.jobUpdate, cb),
   onQueueStats: (cb) => subscribe(IPC.queueStats, cb),
   onSystemLoad: (cb) => subscribe(IPC.systemLoad, cb),
   onOpenPaths: (cb) => subscribe(IPC.openPaths, cb),
+  takeOpenPaths: () => ipcRenderer.invoke(IPC.takeOpenPaths),
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -14,6 +14,7 @@ import {
   probeVideo,
   ProgressParser,
   resolveEncoder,
+  trimWindow,
   type BuildArgsInput,
   type FfmpegProgress,
 } from '../src/main/services/videoProcessor'
@@ -202,6 +203,23 @@ describe('buildVideoArgs', () => {
     expect(none).toContain('-an')
   })
 
+  it('clamps trims to the real duration', () => {
+    expect(trimWindow(info, {})).toEqual({ start: 0, duration: 120, trimmed: false })
+    expect(trimWindow(info, { trimStart: 10, trimEnd: 40 })).toEqual({ start: 10, duration: 30, trimmed: true })
+    expect(trimWindow(info, { trimStart: 100, trimEnd: 500 })).toEqual({ start: 100, duration: 20, trimmed: true })
+    expect(trimWindow(info, { trimStart: 50, trimEnd: 20 }).trimmed).toBe(false)
+  })
+
+  it('trims jobs and sizes the bitrate for the trimmed length', () => {
+    const a = args({ config: cfg({ trimStart: 30, trimEnd: 45 }) })
+    expect(after(a, '-ss')).toBe('30.000')
+    expect(after(a, '-t')).toBe('15.000')
+    expect(a.indexOf('-ss')).toBeLessThan(a.indexOf('-i'))
+    const full = computeTargetBitrate(120, 10 * MB, 128, 1)
+    const clip = computeTargetBitrate(trimWindow(info, { trimStart: 30, trimEnd: 45 }).duration, 10 * MB, 128, 1)
+    expect(clip).toBeGreaterThan(full * 7)
+  })
+
   it('adds seek and duration for preview clips', () => {
     const a = args({ seekSeconds: 48, durationSeconds: 4 })
     expect(a.indexOf('-ss')).toBeLessThan(a.indexOf('-i'))
@@ -303,6 +321,20 @@ describe('real encodes', async () => {
     expect(vp9.notes.join(' ')).toMatch(/OPUS/)
     const vp9Info = await probeVideo(join(dir, 'vp9.webm'))
     expect(vp9Info.audioCodec).toBe('opus')
+  })
+
+  it.skipIf(!ok)('encodes only the trimmed part', async () => {
+    const out = join(dir, 'trim.mp4')
+    await encodeVideo({
+      input: source,
+      output: out,
+      info: sourceInfo,
+      config: cfg({ preset: 'ultrafast', scale: '480p', trimStart: 1, trimEnd: 2.5 }),
+      hardware: null,
+    })
+    const outInfo = await probeVideo(out)
+    expect(outInfo.durationSeconds).toBeGreaterThan(1.3)
+    expect(outInfo.durationSeconds).toBeLessThan(1.8)
   })
 
   it.skipIf(!ok)('cancels a running encode', async () => {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { open, readdir, stat } from 'node:fs/promises'
-import { basename, extname, join } from 'node:path'
+import { basename, dirname, extname, join, relative } from 'node:path'
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/codecs'
 import type { MediaFile, MediaType, ResolveResult } from '@shared/types'
 import { mapLimit } from '../utils/process'
@@ -30,8 +30,15 @@ export function classifyPath(filePath: string): MediaType | null {
   return null
 }
 
-async function expand(paths: string[], rejected: ResolveResult['rejected']): Promise<string[]> {
-  const out: string[] = []
+interface Found {
+  path: string
+  /** Folder below the dropped folder's parent, e.g. "Holiday/Day 1". */
+  relativeDir?: string
+}
+
+async function expand(paths: string[], rejected: ResolveResult['rejected']): Promise<Found[]> {
+  const out: Found[] = []
+  let root = ''
   const walk = async (p: string, depth: number): Promise<void> => {
     if (out.length >= MAX_FILES) return
     let s
@@ -59,11 +66,16 @@ async function expand(paths: string[], rejected: ResolveResult['rejected']): Pro
     }
     if (s.isFile()) {
       const ts = extname(p).toLowerCase() === '.ts'
-      if (classifyPath(p) && (!ts || (await looksLikeTransportStream(p).catch(() => false)))) out.push(p)
+      if (classifyPath(p) && (!ts || (await looksLikeTransportStream(p).catch(() => false)))) {
+        out.push({ path: p, relativeDir: depth > 0 ? relative(dirname(root), dirname(p)) : undefined })
+      }
       else if (depth === 0) rejected.push({ path: p, reason: 'Unsupported file type' })
     }
   }
-  for (const p of paths) await walk(p, 0)
+  for (const p of paths) {
+    root = p
+    await walk(p, 0)
+  }
   return out
 }
 
@@ -71,12 +83,12 @@ async function expand(paths: string[], rejected: ResolveResult['rejected']): Pro
 export async function resolveMedia(paths: string[]): Promise<ResolveResult> {
   const rejected: ResolveResult['rejected'] = []
   const files = await expand(paths, rejected)
-  const resolved = await mapLimit(files, 6, async (filePath): Promise<MediaFile | null> => {
+  const resolved = await mapLimit(files, 6, async ({ path: filePath, relativeDir }): Promise<MediaFile | null> => {
     const type = classifyPath(filePath)!
     try {
       const { size } = await stat(filePath)
       const info = type === 'image' ? await readImageInfo(filePath) : await probeVideo(filePath)
-      return { id: randomUUID(), filePath, fileName: basename(filePath), type, sizeBytes: size, info }
+      return { id: randomUUID(), filePath, fileName: basename(filePath), relativeDir, type, sizeBytes: size, info }
     } catch (e) {
       rejected.push({ path: filePath, reason: e instanceof Error ? e.message : String(e) })
       return null

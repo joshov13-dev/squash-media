@@ -1,9 +1,12 @@
 import { CODECS, ENCODER_LABELS, ENCODER_NAMES } from '@shared/codecs'
 import { MB } from '@shared/presets'
-import type { EncoderMode, VideoCodec } from '@shared/types'
-import { useSettings } from '@renderer/store/settingsStore'
+import type { EncoderMode, MediaJob, VideoCodec, VideoInfo } from '@shared/types'
+import { useVideoEditor } from '@renderer/store/editors'
+import { allVideoPresets, useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
 import { Field, NumberInput, Section, Segmented, Select, Slider, Toggle } from '../ui/controls'
+import { SettingsHeader } from './SettingsHeader'
+import { TrimControl } from './TrimControl'
 
 const QUICK_TARGETS: Array<{ label: string; bytes: number }> = [
   { label: 'Discord 10 MB', bytes: 10 * MB },
@@ -15,8 +18,11 @@ const QUICK_TARGETS: Array<{ label: string; bytes: number }> = [
 const ENCODER_SHORT: Record<EncoderMode, string> = { cpu: 'CPU', nvenc: 'NVENC', qsv: 'QSV', amf: 'AMF' }
 
 export function VideoSettings() {
-  const video = useSettings((s) => s.video)
-  const setVideo = useSettings((s) => s.setVideo)
+  const editor = useVideoEditor()
+  const custom = useSettings((s) => s.customVideoPresets)
+  const savePreset = useSettings((s) => s.saveVideoPreset)
+  const deletePreset = useSettings((s) => s.deletePreset)
+  const { config: video, set: setVideo } = editor
   const hardware = useSystem((s) => s.hardware)
   const spec = CODECS[video.codec]
   const supported = hardware?.encoderSupport[video.codec] ?? ['cpu']
@@ -40,6 +46,19 @@ export function VideoSettings() {
 
   return (
     <div className="pt-1">
+      <SettingsHeader
+        kind="video"
+        job={editor.job}
+        scope={editor.scope}
+        onScope={editor.setScope}
+        presets={allVideoPresets(custom)}
+        presetId={editor.presetId}
+        onPreset={editor.applyPreset}
+        onReset={editor.reset}
+        onSavePreset={savePreset}
+        onDeletePreset={deletePreset}
+      />
+      {editor.job && <TrimControl job={editor.job as MediaJob & { info: VideoInfo }} />}
       <Section title="Format">
         <div className="grid grid-cols-[1fr_96px] gap-2">
           <Field label="Codec">

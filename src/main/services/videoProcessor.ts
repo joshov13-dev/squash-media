@@ -144,6 +144,24 @@ export function computeVideoOutputSize(info: VideoInfo, scale: VideoJobConfig['s
   return { width: even(width), height: even(height) }
 }
 
+export interface TrimWindow {
+  start: number
+  /** Seconds that will be encoded. Falls back to the full length. */
+  duration: number
+  trimmed: boolean
+}
+
+/** The part of the source a job encodes, clamped to the real duration. */
+export function trimWindow(info: VideoInfo, config: Pick<VideoJobConfig, 'trimStart' | 'trimEnd'>): TrimWindow {
+  const total = info.durationSeconds
+  const start = Math.max(0, Math.min(config.trimStart ?? 0, total > 0 ? total : Number.POSITIVE_INFINITY))
+  let end = config.trimEnd && config.trimEnd > 0 ? config.trimEnd : total
+  if (total > 0) end = Math.min(end, total)
+  const trimmed = start > 0.01 || (total > 0 && end < total - 0.01)
+  const duration = end - start
+  return { start, duration: trimmed && duration > 0 ? duration : total, trimmed: trimmed && duration > 0 }
+}
+
 export function computeOutputFps(info: VideoInfo, fpsLimit: number): number {
   if (fpsLimit > 0 && info.fps > fpsLimit + 0.01) return fpsLimit
   return info.fps
@@ -319,9 +337,13 @@ function audioArgs(input: BuildArgsInput): string[] {
 export function buildVideoArgs(input: BuildArgsInput): string[] {
   const { info, config, encoder } = input
   const args = ['-hide_banner', '-nostdin', '-y', '-loglevel', 'error']
-  if (input.seekSeconds && input.seekSeconds > 0) args.push('-ss', input.seekSeconds.toFixed(3))
+  // Preview clips pass an explicit window; jobs use the file's trim.
+  const trim = trimWindow(info, config)
+  const seek = input.seekSeconds ?? (trim.trimmed ? trim.start : 0)
+  const length = input.durationSeconds ?? (trim.trimmed ? trim.duration : 0)
+  if (seek > 0) args.push('-ss', seek.toFixed(3))
   args.push('-i', input.input)
-  if (input.durationSeconds && input.durationSeconds > 0) args.push('-t', input.durationSeconds.toFixed(3))
+  if (length > 0) args.push('-t', length.toFixed(3))
 
   const analysis = input.pass === 1
   const keepSubs = !analysis && config.container === 'mkv' && info.container === 'matroska' && info.subtitleStreams > 0
@@ -470,6 +492,7 @@ export function planWorkload(info: VideoInfo, config: VideoJobConfig, encoder: R
     outputWidth: size.width,
     outputHeight: size.height,
     outputFps: computeOutputFps(info, config.fpsLimit),
+    durationSeconds: trimWindow(info, config).duration,
     passes: bitrateMode && config.twoPass && supportsTwoPass(encoder) ? 2 : 1,
   }
 }
@@ -490,12 +513,12 @@ export async function encodeVideo(o: EncodeVideoOptions): Promise<EncodeVideoRes
 
   const workload = planWorkload(info, config, encoder)
   const predictedFps = predictVideoFps(workload, o.hardware?.performanceScore ?? 1, o.calibration)
-  const totalFrames = outputFrameCount(info, workload.outputFps)
+  const totalFrames = outputFrameCount(info, workload.outputFps, workload.durationSeconds)
 
   let bitrate: number | undefined
   if (config.rateControl === 'bitrate') bitrate = config.targetBitrateKbps
   if (config.rateControl === 'targetSize') {
-    bitrate = computeTargetBitrate(info.durationSeconds, config.targetMaxSizeBytes, audioKbpsFor(config, info, audio), audio === 'none' ? 0 : info.audioStreams)
+    bitrate = computeTargetBitrate(workload.durationSeconds, config.targetMaxSizeBytes, audioKbpsFor(config, info, audio), audio === 'none' ? 0 : info.audioStreams)
     if (bitrate < 150) notes.push(`Very low bitrate (${bitrate} kbps). Try a smaller resolution`)
   }
 
@@ -610,8 +633,10 @@ export async function generateVideoPreview(
   signal?: AbortSignal,
 ): Promise<VideoPreviewResult> {
   const { info, config } = req
-  const sampleSeconds = Math.min(4, info.durationSeconds > 0 ? info.durationSeconds : 4)
-  const start = info.durationSeconds > sampleSeconds * 2 ? info.durationSeconds * 0.4 : 0
+  const window = trimWindow(info, config)
+  const length = window.duration
+  const sampleSeconds = Math.min(4, length > 0 ? length : 4)
+  const start = window.start + (length > sampleSeconds * 2 ? length * 0.4 : 0)
   const encoder = resolveEncoder(config, hardware)
   const audio = resolveAudioMode(config.container, config.audioCodec, info.audioCodec)
   const audioKbps = audioKbpsFor(config, info, audio)
@@ -619,7 +644,7 @@ export async function generateVideoPreview(
   let bitrate: number | undefined
   if (config.rateControl === 'bitrate') bitrate = config.targetBitrateKbps
   if (config.rateControl === 'targetSize') {
-    bitrate = computeTargetBitrate(info.durationSeconds, config.targetMaxSizeBytes, audioKbps, audio === 'none' ? 0 : info.audioStreams)
+    bitrate = computeTargetBitrate(length, config.targetMaxSizeBytes, audioKbps, audio === 'none' ? 0 : info.audioStreams)
   }
 
   const workDir = await mkdtemp(join(os.tmpdir(), 'squashforge-preview-'))
@@ -667,12 +692,12 @@ export async function generateVideoPreview(
       extractFrame(samplePath, mid, { signal }),
     ])
 
-    let estimatedBytes = Math.round((sampleBytes / sampleSeconds) * info.durationSeconds)
+    let estimatedBytes = Math.round((sampleBytes / sampleSeconds) * length)
     if (config.rateControl === 'targetSize') estimatedBytes = Math.min(estimatedBytes, config.targetMaxSizeBytes)
-    if (config.rateControl === 'bitrate') estimatedBytes = Math.round(((bitrate! + audioKbps) * 1000 * info.durationSeconds) / 8)
+    if (config.rateControl === 'bitrate') estimatedBytes = Math.round(((bitrate! + audioKbps) * 1000 * length) / 8)
 
     const workload = planWorkload(info, config, encoder)
-    const frames = outputFrameCount(info, workload.outputFps)
+    const frames = outputFrameCount(info, workload.outputFps, workload.durationSeconds)
     let estimatedEncodeSeconds = frames / encodeFps
     if (workload.passes > 1) estimatedEncodeSeconds += estimatedEncodeSeconds / firstPassSpeedRatio(config.codec, encoder.mode)
 

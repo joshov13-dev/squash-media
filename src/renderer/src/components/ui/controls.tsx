@@ -10,7 +10,7 @@ import { cn } from '@renderer/lib/cn'
 // Buttons
 // ---------------------------------------------------------------------------
 
-type ButtonVariant = 'primary' | 'quiet' | 'plain' | 'danger'
+type ButtonVariant = 'primary' | 'quiet' | 'plain' | 'danger' | 'raised'
 
 export function Button({
   variant = 'quiet',
@@ -28,6 +28,8 @@ export function Button({
         variant === 'quiet' && 'bg-raised text-ink hover:bg-hover active:bg-press',
         variant === 'plain' && 'text-ink-2 hover:bg-raised hover:text-ink active:bg-hover',
         variant === 'danger' && 'bg-raised text-brick hover:bg-hover active:bg-press',
+        // For buttons that sit on an already raised surface.
+        variant === 'raised' && 'bg-hover text-ink hover:bg-press active:bg-press',
         className,
       )}
       {...props}
@@ -185,6 +187,44 @@ export function Slider({
   )
 }
 
+/** Two-thumb slider for picking a range, such as a trim. */
+export function RangeSlider({
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  ariaLabel,
+}: {
+  value: [number, number]
+  min: number
+  max: number
+  step?: number
+  onChange: (v: [number, number]) => void
+  ariaLabel: string
+}) {
+  const thumb =
+    'block h-3.5 w-3.5 rounded-full bg-ink shadow-[0_1px_3px_rgba(0,0,0,0.5)] transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-ember'
+  return (
+    <RadixSlider.Root
+      className="relative flex h-5 w-full touch-none items-center select-none"
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      minStepsBetweenThumbs={1}
+      onValueChange={([a, b]) => onChange([a, b])}
+      aria-label={ariaLabel}
+    >
+      <RadixSlider.Track className="relative h-1 grow overflow-hidden rounded-full bg-press">
+        <RadixSlider.Range className="absolute h-full rounded-full bg-ember-2" />
+      </RadixSlider.Track>
+      <RadixSlider.Thumb className={thumb} aria-label="Start" />
+      <RadixSlider.Thumb className={thumb} aria-label="End" />
+    </RadixSlider.Root>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Switch
 // ---------------------------------------------------------------------------
@@ -237,24 +277,30 @@ export function Select<T extends string>({
   onChange,
   ariaLabel,
   className,
+  placeholder,
+  size = 'md',
 }: {
-  value: T
+  value: T | ''
   options: SelectOption<T>[]
   onChange: (v: T) => void
   ariaLabel: string
   className?: string
+  /** Shown when `value` matches no option. */
+  placeholder?: string
+  size?: 'sm' | 'md'
 }) {
   return (
     <RadixSelect.Root value={value} onValueChange={(v) => onChange(v as T)}>
       <RadixSelect.Trigger
         aria-label={ariaLabel}
         className={cn(
-          'no-drag inline-flex h-8 w-full items-center justify-between gap-2 rounded-md bg-ground px-2.5 text-left text-ink transition-colors hover:bg-hover data-[state=open]:bg-hover',
+          'no-drag inline-flex items-center justify-between gap-2 rounded-md text-left text-ink transition-colors hover:bg-hover data-[state=open]:bg-hover',
+          size === 'md' ? 'h-8 w-full bg-ground px-2.5' : 'h-6 px-1.5 text-[12px]',
           className,
         )}
       >
-        <span className="truncate">
-          <RadixSelect.Value />
+        <span className="truncate data-[placeholder]:text-ink-3">
+          <RadixSelect.Value placeholder={placeholder} />
         </span>
         <RadixSelect.Icon>
           <ChevronDown size={14} className="text-ink-3" />

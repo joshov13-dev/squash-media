@@ -42,6 +42,7 @@ export const DEFAULT_OUTPUT: OutputSettings = {
   folder: null,
   keepOriginalIfLarger: true,
   preserveTimestamps: true,
+  keepFolderStructure: true,
 }
 
 export interface Preset<T> {
@@ -100,6 +101,12 @@ export const IMAGE_PRESETS: Preset<ImageJobConfig>[] = [
 ].map((p) => ({ ...p, builtIn: true }))
 
 export const VIDEO_PRESETS: Preset<VideoJobConfig>[] = [
+  {
+    id: 'vid-standard',
+    name: 'Standard (H.264)',
+    description: 'Plays on anything. Keeps the size and frame rate, RF 22.',
+    config: vid({}),
+  },
   {
     id: 'vid-fast-1080p',
     name: 'Fast 1080p (H.264)',
