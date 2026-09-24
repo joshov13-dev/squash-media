@@ -24,6 +24,10 @@
   npmRebuild: false,
   // No auto-updater: releases are downloaded by hand.
   publish: null,
+  // The interface is English only, so drop Chromium's other 50-odd language packs.
+  electronLanguages: ['en-US', 'en-GB'],
+  // Smaller download at the cost of a slower build.
+  compression: 'maximum',
   win: {
     icon: 'build/icon.png',
     executableName: 'SquashForge',
