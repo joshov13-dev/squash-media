@@ -12,7 +12,7 @@ import type {
   VideoPreviewResult,
 } from '@shared/types'
 import { getHardwareProfile } from '../hardware'
-import { generateImagePreview, makeImageThumbnail } from '../services/imageProcessor'
+import { generateImagePreview, getDisplayableOriginal, makeImageThumbnail } from '../services/imageProcessor'
 import type { JobQueue } from '../services/jobQueue'
 import { resolveMedia } from '../services/mediaResolver'
 import { generateVideoPreview, makeVideoThumbnail } from '../services/videoProcessor'
@@ -62,7 +62,10 @@ function assertPath(p: unknown): string {
 }
 
 export function registerIpcHandlers(queue: JobQueue): void {
-  const imagePreviews = new LatestOnly<ImagePreviewRequest, ImagePreviewResult>((req) => generateImagePreview(req))
+  // Quick and full previews queue separately so a slow full encode (say AVIF)
+  // never holds up the instant feedback for the next slider move.
+  const quickPreviews = new LatestOnly<ImagePreviewRequest, ImagePreviewResult>((req) => generateImagePreview(req))
+  const fullPreviews = new LatestOnly<ImagePreviewRequest, ImagePreviewResult>((req) => generateImagePreview(req))
   let videoPreview: AbortController | null = null
 
   ipcMain.handle(IPC.hardware, () => getHardwareProfile())
@@ -114,10 +117,15 @@ export function registerIpcHandlers(queue: JobQueue): void {
     }
   })
 
+  ipcMain.handle(IPC.imageOriginal, async (_e, filePath: unknown) => {
+    const { data, mime } = await getDisplayableOriginal(assertPath(filePath))
+    return { data: new Uint8Array(data.buffer, data.byteOffset, data.byteLength), mime }
+  })
+
   ipcMain.handle(IPC.previewImage, (_e, req: ImagePreviewRequest) => {
     assertPath(req.filePath)
     if (req.resultPath && !existsSync(req.resultPath)) req = { ...req, resultPath: undefined }
-    return imagePreviews.run(req)
+    return req.quick ? quickPreviews.run(req) : fullPreviews.run(req)
   })
 
   ipcMain.handle(IPC.previewVideo, async (_e, req: VideoPreviewRequest): Promise<VideoPreviewResult | null> => {

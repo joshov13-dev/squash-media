@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { readdir, stat } from 'node:fs/promises'
+import { open, readdir, stat } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/codecs'
 import type { MediaFile, MediaType, ResolveResult } from '@shared/types'
@@ -9,6 +9,19 @@ import { probeVideo } from './videoProcessor'
 
 const MAX_FILES = 5000
 const MAX_DEPTH = 8
+const SKIP_DIRS = new Set(['node_modules', '__pycache__', 'System Volume Information'])
+
+/** ".ts" is also TypeScript. Real MPEG transport streams start with a 0x47 sync byte. */
+async function looksLikeTransportStream(filePath: string): Promise<boolean> {
+  const handle = await open(filePath, 'r')
+  try {
+    const buf = Buffer.alloc(1)
+    await handle.read(buf, 0, 1, 0)
+    return buf[0] === 0x47
+  } finally {
+    await handle.close()
+  }
+}
 
 export function classifyPath(filePath: string): MediaType | null {
   const ext = extname(filePath).toLowerCase()
@@ -39,13 +52,14 @@ async function expand(paths: string[], rejected: ResolveResult['rejected']): Pro
       }
       entries.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       for (const name of entries) {
-        if (name.startsWith('.') || name.startsWith('$')) continue
+        if (name.startsWith('.') || name.startsWith('$') || SKIP_DIRS.has(name)) continue
         await walk(join(p, name), depth + 1)
       }
       return
     }
     if (s.isFile()) {
-      if (classifyPath(p)) out.push(p)
+      const ts = extname(p).toLowerCase() === '.ts'
+      if (classifyPath(p) && (!ts || (await looksLikeTransportStream(p).catch(() => false)))) out.push(p)
       else if (depth === 0) rejected.push({ path: p, reason: 'Unsupported file type' })
     }
   }

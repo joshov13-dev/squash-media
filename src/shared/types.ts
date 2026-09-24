@@ -238,15 +238,21 @@ export interface ImagePreviewRequest {
   requestId: number
   filePath: string
   config: ImageJobConfig
-  includeBefore: boolean
+  /** Fast encode of a small copy for instant feedback. Reports no size. */
+  quick?: boolean
   /** Compare against an existing output file instead of a live encode. */
   resultPath?: string
 }
 
+/** The source image in a form the UI can display. */
+export interface ImageOriginal {
+  data: Uint8Array
+  mime: string
+}
+
 export interface ImagePreviewResult {
   requestId: number
-  before?: Uint8Array
-  beforeMime?: string
+  quick?: boolean
   after: Uint8Array
   afterMime: string
   originalBytes: number

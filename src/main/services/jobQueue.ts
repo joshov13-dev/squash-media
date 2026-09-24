@@ -207,9 +207,17 @@ export class JobQueue {
 
   private async runVideo(item: QueueItem): Promise<void> {
     const { req } = item
-    const config = req.videoConfig!
+    let config = req.videoConfig!
     const info = req.info as VideoInfo
     const sourceStat = await stat(req.filePath)
+    if (config.rateControl === 'targetSize' && req.sizeBytes <= config.targetMaxSizeBytes) {
+      // Encoding up to the target would only make the file bigger.
+      if (req.output.keepOriginalIfLarger) {
+        await this.keepOriginal(item, sourceStat, 'Already under the target size')
+        return
+      }
+      config = { ...config, targetMaxSizeBytes: req.sizeBytes }
+    }
     const plan = planOutputPath(req.filePath, videoOutputExtension(config.container), req.output)
     const temp = tempPathFor(plan.finalPath, req.id)
     await mkdir(dirname(plan.finalPath), { recursive: true })
@@ -240,7 +248,7 @@ export class JobQueue {
         this.deps.calibration.record(calibrationKey(config.codec, result.encoder.mode, config.preset), raw / result.measuredFps)
       }
 
-      const larger = result.bytes >= req.sizeBytes && req.output.keepOriginalIfLarger && config.rateControl !== 'targetSize'
+      const larger = result.bytes >= req.sizeBytes && req.output.keepOriginalIfLarger
       if (larger) {
         await rm(temp, { force: true })
         await this.keepOriginal(item, sourceStat, 'Original kept: compressed file was larger')
@@ -365,7 +373,7 @@ export class JobQueue {
       running,
       percent: weightTotal > 0 ? Math.min(100, Math.round((weightDone / weightTotal) * 1000) / 10) : 0,
       estimatedSecondsRemaining: Math.round(eta),
-      humanReadableEta: active ? formatEta(eta) : '--',
+      humanReadableEta: active ? formatEta(eta) : '',
       elapsedSeconds: this.runStartedAt ? Math.round((Date.now() - this.runStartedAt) / 1000) : 0,
     }
   }

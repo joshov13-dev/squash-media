@@ -1,0 +1,111 @@
+@import 'tailwindcss';
+
+/*
+ * One world: warm iron. Surfaces step up in value rather than being boxed in
+ * with borders; the accent is a heated-metal tint, used tonally.
+ */
+@theme {
+  --color-ground: #121110;
+  --color-panel: #181715;
+  --color-raised: #201e1b;
+  --color-hover: #292724;
+  --color-press: #33302c;
+  --color-line: #2c2a26;
+  --color-ink: #ece7df;
+  --color-ink-2: #aca69c;
+  --color-ink-3: #77716a;
+  --color-ember: #dfae82;
+  --color-ember-2: #b98a62;
+  --color-ember-3: #5a4636;
+  --color-sage: #aac291;
+  --color-brick: #de8f7c;
+
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ember-2);
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+
+  input,
+  button,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::selection {
+    background: var(--color-ember-3);
+  }
+}
+
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility drag {
+  -webkit-app-region: drag;
+}
+
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Quiet scrollbars that match the surfaces. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-press);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #45413b;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Indeterminate shimmer for work without a progress stream. */
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

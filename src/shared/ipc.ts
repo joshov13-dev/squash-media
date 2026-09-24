@@ -1,5 +1,6 @@
 import type {
   HardwareProfile,
+  ImageOriginal,
   ImagePreviewRequest,
   ImagePreviewResult,
   JobRequest,
@@ -19,6 +20,7 @@ export const IPC = {
   chooseOutputFolder: 'dialog:output-folder',
   resolveMedia: 'media:resolve',
   thumbnail: 'media:thumbnail',
+  imageOriginal: 'preview:image-original',
   previewImage: 'preview:image',
   previewVideo: 'preview:video',
   cancelVideoPreview: 'preview:video-cancel',
@@ -46,6 +48,7 @@ export interface SquashApi {
   getPathForFile(file: File): string
   resolveMedia(paths: string[]): Promise<ResolveResult>
   getThumbnail(file: MediaFile): Promise<string | null>
+  getImageOriginal(filePath: string): Promise<ImageOriginal>
   /** Resolves null when a newer request replaced this one. */
   previewImage(req: ImagePreviewRequest): Promise<ImagePreviewResult | null>
   previewVideo(req: VideoPreviewRequest): Promise<VideoPreviewResult | null>

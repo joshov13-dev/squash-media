@@ -8,9 +8,9 @@ export function formatBytes(bytes: number, decimals = 1): string {
   return `${value.toFixed(i === 0 ? 0 : decimals)} ${units[i]}`
 }
 
-/** "01m 24s", "1h 05m", "12s". */
+/** "01m 24s", "1h 05m", "12s". Empty when unknown. */
 export function formatEta(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return '--'
+  if (!Number.isFinite(seconds) || seconds < 0) return ''
   const s = Math.round(seconds)
   if (s < 60) return `${s}s`
   const h = Math.floor(s / 3600)
@@ -22,7 +22,7 @@ export function formatEta(seconds: number): string {
 
 /** "00:02:13" style clock for media durations. */
 export function formatDuration(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return '--:--'
+  if (!Number.isFinite(seconds) || seconds < 0) return 'unknown length'
   const s = Math.floor(seconds)
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)

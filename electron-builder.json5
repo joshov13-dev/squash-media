@@ -1,0 +1,68 @@
+// Packaging for SquashForge. Windows is the main target:
+//   npm run fetch:ffmpeg && npm run dist:win
+// produces an NSIS installer and a single-file portable .exe in release/<version>.
+{
+  $schema: 'https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json',
+  appId: 'com.squashforge.app',
+  productName: 'SquashForge',
+  copyright: 'Copyright © 2026 SquashForge contributors',
+  directories: {
+    buildResources: 'build',
+    output: 'release/${version}',
+  },
+  // Production dependencies (sharp, systeminformation) are added automatically;
+  // everything the renderer needs is already bundled into out/.
+  files: [
+    'out/**/*',
+    'package.json',
+    '!**/*.map',
+  ],
+  asar: true,
+  // sharp loads native libvips binaries, which cannot run from inside an asar.
+  asarUnpack: ['node_modules/sharp/**/*', 'node_modules/@img/**/*'],
+  // sharp ships N-API prebuilds, so nothing needs compiling for Electron.
+  npmRebuild: false,
+  // No auto-updater: releases are downloaded by hand.
+  publish: null,
+  win: {
+    icon: 'build/icon.png',
+    executableName: 'SquashForge',
+    target: [
+      { target: 'nsis', arch: ['x64'] },
+      { target: 'portable', arch: ['x64'] },
+    ],
+    extraResources: [
+      {
+        from: 'binaries/win',
+        to: 'bin',
+        filter: ['ffmpeg.exe', 'ffprobe.exe', 'FFMPEG-LICENSE.txt'],
+      },
+    ],
+  },
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: 'SquashForge',
+    uninstallDisplayName: 'SquashForge',
+    artifactName: '${productName}-Setup-${version}-x64.${ext}',
+  },
+  portable: {
+    artifactName: '${productName}-Portable-${version}-x64.${ext}',
+  },
+  // Linux is only used to smoke-test packaging during development.
+  linux: {
+    icon: 'build/icon.png',
+    category: 'Graphics',
+    target: ['dir'],
+    extraResources: [
+      {
+        from: 'binaries/linux',
+        to: 'bin',
+        filter: ['ffmpeg', 'ffprobe', 'FFMPEG-LICENSE.txt'],
+      },
+    ],
+  },
+}

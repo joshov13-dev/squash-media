@@ -16,6 +16,7 @@ const api: SquashApi = {
   getPathForFile: (file) => webUtils.getPathForFile(file),
   resolveMedia: (paths) => ipcRenderer.invoke(IPC.resolveMedia, paths),
   getThumbnail: (file) => ipcRenderer.invoke(IPC.thumbnail, file),
+  getImageOriginal: (filePath) => ipcRenderer.invoke(IPC.imageOriginal, filePath),
   previewImage: (req) => ipcRenderer.invoke(IPC.previewImage, req),
   previewVideo: (req) => ipcRenderer.invoke(IPC.previewVideo, req),
   cancelVideoPreview: () => ipcRenderer.invoke(IPC.cancelVideoPreview),

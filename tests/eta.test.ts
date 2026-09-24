@@ -48,7 +48,7 @@ describe('formatting', () => {
     expect(formatEta(84)).toBe('01m 24s')
     expect(formatEta(12)).toBe('12s')
     expect(formatEta(3900)).toBe('1h 05m')
-    expect(formatEta(Number.NaN)).toBe('--')
+    expect(formatEta(Number.NaN)).toBe('')
   })
   it('formats bytes and durations', () => {
     expect(formatBytes(0)).toBe('0 B')

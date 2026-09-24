@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { existsSync } from 'node:fs'
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import { IPC } from '@shared/ipc'
 import { getHardwareProfile } from './hardware'
 import { registerIpcHandlers } from './ipc/handlers'
@@ -11,7 +11,7 @@ import { SystemMonitor } from './systemMonitor'
 let mainWindow: BrowserWindow | null = null
 let monitor: SystemMonitor | null = null
 
-const BACKGROUND = '#0d0d0f'
+const BACKGROUND = '#121110'
 
 function send(channel: string, payload: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
@@ -19,7 +19,10 @@ function send(channel: string, payload: unknown): void {
 
 /** Media paths passed on the command line (e.g. files dropped onto the .exe). */
 function pathsFromArgv(argv: string[]): string[] {
-  return argv.slice(app.isPackaged ? 1 : 2).filter((a) => !a.startsWith('-') && isAbsolute(a) && existsSync(a))
+  const skip = new Set([resolve(app.getAppPath()), resolve(process.execPath)])
+  return argv
+    .slice(1)
+    .filter((a) => !a.startsWith('-') && isAbsolute(a) && !skip.has(resolve(a)) && existsSync(a))
 }
 
 function createWindow(): void {
@@ -34,7 +37,7 @@ function createWindow(): void {
     title: 'SquashForge',
     autoHideMenuBar: true,
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
-    ...(isMac ? {} : { titleBarOverlay: { color: BACKGROUND, symbolColor: '#9a9aa3', height: 44 } }),
+    ...(isMac ? {} : { titleBarOverlay: { color: BACKGROUND, symbolColor: '#aca69c', height: 44 } }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,

@@ -439,27 +439,47 @@ function toUint8(buf: Buffer): Uint8Array {
   return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
 }
 
+/** Pixel budget for the instant, low-resolution preview. */
+export const QUICK_PIXELS = 1_200_000
+
+/**
+ * The source as the UI should show it. Large images are downsampled to the
+ * same size the full preview uses, so both sides compare like for like.
+ */
+export async function getDisplayableOriginal(filePath: string): Promise<{ data: Buffer; mime: string }> {
+  const original = await readFile(filePath)
+  const img = await loadImage(filePath, original)
+  if (img.width * img.height > PREVIEW_FULL_LIMIT) {
+    const small = await downsample(img, PREVIEW_PIXELS)
+    return { data: await openImage(small).png({ compressionLevel: 1 }).toBuffer(), mime: 'image/png' }
+  }
+  return toDisplayable(original, img.format)
+}
+
+/** Scale output dimensions onto a downsampled copy of the source. */
+function scaledDims(full: { width: number; height: number }, small: LoadedImage, ratio: number): { width: number; height: number } {
+  return {
+    width: Math.max(1, Math.min(small.width, Math.round(full.width * ratio))),
+    height: Math.max(1, Math.min(small.height, Math.round(full.height * ratio))),
+  }
+}
+
 export async function generateImagePreview(req: ImagePreviewRequest): Promise<ImagePreviewResult> {
   const started = Date.now()
   const original = await readFile(req.filePath)
   const img = await loadImage(req.filePath, original)
-  const format = resolveImageFormat(req.config.format, img.format)
   const fullDims = computeOutputSize(img.width, img.height, req.config.resize)
-  const large = fullDims.width * fullDims.height > PREVIEW_FULL_LIMIT
+  const base = { requestId: req.requestId, originalBytes: original.length }
 
   // Comparing against an existing output file.
   if (req.resultPath) {
     const out = await readFile(req.resultPath)
     const outInfo = await readImageInfo(req.resultPath, out)
     const shown = await toDisplayable(out, outInfo.format)
-    const before = req.includeBefore ? await toDisplayable(original, img.format) : undefined
     return {
-      requestId: req.requestId,
-      before: before ? toUint8(before.data) : undefined,
-      beforeMime: before?.mime,
+      ...base,
       after: toUint8(shown.data),
       afterMime: shown.mime,
-      originalBytes: original.length,
       estimatedBytes: out.length,
       exact: true,
       outputWidth: outInfo.width,
@@ -469,20 +489,35 @@ export async function generateImagePreview(req: ImagePreviewRequest): Promise<Im
     }
   }
 
-  const losslessJpegCopy =
-    req.config.mode === 'lossless' && format === 'jpeg' && img.format === 'jpeg' && fullDims.width === img.width && fullDims.height === img.height
-
-  if (!large || losslessJpegCopy) {
-    const result = await compressLoaded(img, original, req.config)
+  // Instant feedback: encode a small copy. The size would be misleading
+  // (downsampling removes detail), so none is reported.
+  if (req.quick) {
+    const small = img.width * img.height > QUICK_PIXELS ? await downsample(img, QUICK_PIXELS) : img
+    const ratio = small.width / img.width
+    const config: ImageJobConfig = req.config.mode === 'targetSize' ? { ...req.config, mode: 'quality', quality: 70 } : req.config
+    const result = await compressLoaded(small, original, config, { dims: scaledDims(fullDims, small, ratio) })
     const after = await toDisplayable(result.data, result.format)
-    const before = req.includeBefore ? await toDisplayable(original, img.format) : undefined
     return {
-      requestId: req.requestId,
-      before: before ? toUint8(before.data) : undefined,
-      beforeMime: before?.mime,
+      ...base,
+      quick: true,
       after: toUint8(after.data),
       afterMime: after.mime,
-      originalBytes: original.length,
+      estimatedBytes: 0,
+      exact: false,
+      outputWidth: fullDims.width,
+      outputHeight: fullDims.height,
+      outputFormat: result.format,
+      elapsedMs: Date.now() - started,
+    }
+  }
+
+  if (fullDims.width * fullDims.height <= PREVIEW_FULL_LIMIT || isLosslessJpegCopy(img, req.config, fullDims)) {
+    const result = await compressLoaded(img, original, req.config)
+    const after = await toDisplayable(result.data, result.format)
+    return {
+      ...base,
+      after: toUint8(after.data),
+      afterMime: after.mime,
       estimatedBytes: result.data.length,
       exact: true,
       outputWidth: result.width,
@@ -497,10 +532,7 @@ export async function generateImagePreview(req: ImagePreviewRequest): Promise<Im
   // Large output: show a downsampled encode, estimate size from full-res tiles.
   const small = await downsample(img, PREVIEW_PIXELS)
   const ratio = small.width / img.width
-  const dims = {
-    width: Math.max(1, Math.min(small.width, Math.round(fullDims.width * ratio))),
-    height: Math.max(1, Math.min(small.height, Math.round(fullDims.height * ratio))),
-  }
+  const dims = scaledDims(fullDims, small, ratio)
   const pixelRatio = (fullDims.width * fullDims.height) / (dims.width * dims.height)
   const targetMode = req.config.mode === 'targetSize'
   const targetBytes = targetMode ? req.config.targetMaxSizeBytes / pixelRatio : undefined
@@ -509,16 +541,10 @@ export async function generateImagePreview(req: ImagePreviewRequest): Promise<Im
     targetMode ? Promise.resolve(0) : estimateFromTiles(img, req.config, fullDims),
   ])
   const after = await toDisplayable(result.data, result.format)
-  const before = req.includeBefore
-    ? { data: await openImage(small).png({ compressionLevel: 1 }).toBuffer(), mime: 'image/png' }
-    : undefined
   return {
-    requestId: req.requestId,
-    before: before ? toUint8(before.data) : undefined,
-    beforeMime: before?.mime,
+    ...base,
     after: toUint8(after.data),
     afterMime: after.mime,
-    originalBytes: original.length,
     estimatedBytes: targetMode ? Math.round(result.data.length * pixelRatio) : tileEstimate,
     exact: false,
     outputWidth: Math.round(result.width / ratio),
@@ -528,6 +554,16 @@ export async function generateImagePreview(req: ImagePreviewRequest): Promise<Im
     note: 'Large image: preview is downscaled and the size is estimated',
     elapsedMs: Date.now() - started,
   }
+}
+
+function isLosslessJpegCopy(img: LoadedImage, config: ImageJobConfig, dims: { width: number; height: number }): boolean {
+  return (
+    config.mode === 'lossless' &&
+    resolveImageFormat(config.format, img.format) === 'jpeg' &&
+    img.format === 'jpeg' &&
+    dims.width === img.width &&
+    dims.height === img.height
+  )
 }
 
 export async function makeImageThumbnail(filePath: string): Promise<string> {

@@ -39,6 +39,7 @@ export function runProcess(command: string, args: string[], options: RunOptions 
     let settled = false
     let timer: NodeJS.Timeout | undefined
 
+    let aborted = false
     const finish = (fn: () => void): void => {
       if (settled) return
       settled = true
@@ -46,9 +47,12 @@ export function runProcess(command: string, args: string[], options: RunOptions 
       signal?.removeEventListener('abort', onAbort)
       fn()
     }
+    // Wait for the process to exit before rejecting: on Windows the output
+    // file stays locked until then, and callers clean it up straight after.
     const onAbort = (): void => {
+      aborted = true
       child.kill('SIGKILL')
-      finish(() => reject(new AbortError()))
+      setTimeout(() => finish(() => reject(new AbortError())), 5000).unref()
     }
 
     signal?.addEventListener('abort', onAbort, { once: true })
@@ -67,9 +71,9 @@ export function runProcess(command: string, args: string[], options: RunOptions 
       err += chunk.toString('utf8')
       if (err.length > stderrLimit * 2) err = err.slice(-stderrLimit)
     })
-    child.on('error', (e) => finish(() => reject(e)))
+    child.on('error', (e) => finish(() => reject(aborted ? new AbortError() : e)))
     child.on('close', (code) =>
-      finish(() => resolve({ code, stdout: Buffer.concat(out), stderr: err.slice(-stderrLimit) })),
+      finish(() => (aborted ? reject(new AbortError()) : resolve({ code, stdout: Buffer.concat(out), stderr: err.slice(-stderrLimit) }))),
     )
   })
 }

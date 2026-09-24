@@ -163,6 +163,27 @@ describe('JobQueue', () => {
     expect(done.get('good')!.status).toBe('completed')
   })
 
+  it('keeps videos that are already under the target size', async () => {
+    const dir = await tempDir()
+    const src = join(dir, 'small.mp4')
+    await sharp({ create: { width: 8, height: 8, channels: 3, background: '#000' } }).png().toFile(src)
+    const { queue, waitFor } = harness()
+    await queue.enqueue([
+      {
+        id: 'small',
+        filePath: src,
+        type: 'video',
+        sizeBytes: (await stat(src)).size,
+        info: { kind: 'video', container: 'mov', durationSeconds: 5, width: 640, height: 360, fps: 30, totalFrames: 150, videoCodec: 'h264', pixelFormat: 'yuv420p', bitDepth: 8, bitrateKbps: 1, audioCodec: null, audioChannels: null, audioBitrateKbps: null, audioStreams: 0, subtitleStreams: 0 },
+        videoConfig: { ...DEFAULT_VIDEO_CONFIG, rateControl: 'targetSize', targetMaxSizeBytes: 10 * 1024 * 1024 },
+        output: DEFAULT_OUTPUT,
+      },
+    ])
+    const u = (await waitFor(['small'])).get('small')!
+    expect(u.status).toBe('skipped')
+    expect(u.note).toBe('Already under the target size')
+  })
+
   it.skipIf(!ffmpegAvailable)('runs video jobs with live progress and ETA', async () => {
     const dir = await tempDir()
     const src = join(dir, 'clip.mp4')
@@ -185,6 +206,6 @@ describe('JobQueue', () => {
     expect(u.outputPath).toBe(join(dir, 'clip_compressed.mkv'))
     const progress = updates.filter((x) => x.jobId === 'v' && x.status === 'processing')
     expect(progress.length).toBeGreaterThan(1)
-    expect(progress.some((x) => x.progress.humanReadableEta !== '--')).toBe(true)
+    expect(progress.some((x) => x.progress.humanReadableEta !== '')).toBe(true)
   })
 })

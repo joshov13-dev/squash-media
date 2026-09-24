@@ -8,7 +8,9 @@ import {
   compressImage,
   computeOutputSize,
   generateImagePreview,
+  getDisplayableOriginal,
   PREVIEW_FULL_LIMIT,
+  QUICK_PIXELS,
   readImageInfo,
 } from '../src/main/services/imageProcessor'
 import { buildOrientationExif, readExifOrientation, stripJpegMetadata } from '../src/main/services/jpegStrip'
@@ -178,20 +180,32 @@ describe('JPEG metadata stripping', () => {
 
 describe('previews', () => {
   it('returns an exact live preview for normal images', async () => {
-    const r = await generateImagePreview({ requestId: 7, filePath: jpegPath, config: cfg({ format: 'webp', quality: 60 }), includeBefore: true })
+    const r = await generateImagePreview({ requestId: 7, filePath: jpegPath, config: cfg({ format: 'webp', quality: 60 }) })
     expect(r.requestId).toBe(7)
     expect(r.exact).toBe(true)
     expect(r.afterMime).toBe('image/webp')
-    expect(r.beforeMime).toBe('image/jpeg')
     expect(r.estimatedBytes).toBe(r.after.byteLength)
+    expect((await getDisplayableOriginal(jpegPath)).mime).toBe('image/jpeg')
+  })
+
+  it('gives instant feedback from a small copy without claiming a size', async () => {
+    const r = await generateImagePreview({ requestId: 8, filePath: jpegPath, config: cfg({ format: 'avif', quality: 50 }), quick: true })
+    expect(r.quick).toBe(true)
+    expect(r.estimatedBytes).toBe(0)
+    expect(r.outputWidth).toBe(1600)
+    const meta = await sharp(Buffer.from(r.after)).metadata()
+    expect(meta.width! * meta.height!).toBeLessThanOrEqual(QUICK_PIXELS * 1.01)
   })
 
   it('estimates from a downsampled copy for huge images', async () => {
     const path = join(dir, 'huge.jpg')
     const side = Math.ceil(Math.sqrt(PREVIEW_FULL_LIMIT)) + 200
     await (await photo(side, side)).jpeg({ quality: 90 }).toFile(path)
-    const r = await generateImagePreview({ requestId: 1, filePath: path, config: cfg({ quality: 70 }), includeBefore: true })
+    const r = await generateImagePreview({ requestId: 1, filePath: path, config: cfg({ quality: 70 }) })
     expect(r.exact).toBe(false)
+    const shown = await getDisplayableOriginal(path)
+    expect(shown.mime).toBe('image/png')
+    expect((await sharp(shown.data).metadata()).width).toBe((await sharp(Buffer.from(r.after)).metadata()).width)
     expect(r.outputWidth).toBeGreaterThan(side - 5)
     const real = await compressImage(path, cfg({ quality: 70 }))
     // Tile sampling should land within about 25% of the real size.
@@ -203,17 +217,17 @@ describe('previews', () => {
     const path = join(dir, 'scan.tif')
     await (await photo(300, 200)).tiff().toFile(path)
     expect((await readImageInfo(path)).format).toBe('tiff')
-    const r = await generateImagePreview({ requestId: 2, filePath: path, config: cfg({ quality: 60 }), includeBefore: true })
+    const r = await generateImagePreview({ requestId: 2, filePath: path, config: cfg({ quality: 60 }) })
     expect(r.outputFormat).toBe('tiff')
     expect(r.afterMime).toBe('image/png')
-    expect(r.beforeMime).toBe('image/png')
+    expect((await getDisplayableOriginal(path)).mime).toBe('image/png')
   })
 
   it('compares against an existing output file', async () => {
     const out = join(dir, 'result.webp')
     await writeFile(out, (await compressImage(jpegPath, cfg({ format: 'webp' }))).data)
-    const r = await generateImagePreview({ requestId: 3, filePath: jpegPath, config: cfg({}), includeBefore: false, resultPath: out })
+    const r = await generateImagePreview({ requestId: 3, filePath: jpegPath, config: cfg({}), resultPath: out })
     expect(r.afterMime).toBe('image/webp')
-    expect(r.before).toBeUndefined()
+    expect(r.exact).toBe(true)
   })
 })

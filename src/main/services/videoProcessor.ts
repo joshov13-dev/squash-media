@@ -591,7 +591,7 @@ export async function extractFrame(
 
 export async function makeVideoThumbnail(filePath: string, info: VideoInfo): Promise<string> {
   const at = Math.min(10, info.durationSeconds * 0.1)
-  const data = await extractFrame(filePath, at, { width: 160, format: 'jpeg' })
+  const data = await extractFrame(filePath, at, { width: 640, format: 'jpeg' })
   return `data:image/jpeg;base64,${data.toString('base64')}`
 }
 
