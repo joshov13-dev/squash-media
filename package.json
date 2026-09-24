@@ -1,7 +1,7 @@
 {
   "name": "squashforge",
   "productName": "SquashForge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Batch image and video compressor for Windows. Caesium-style image squeezing and HandBrake-style video encoding in one queue.",
   "author": "SquashForge",

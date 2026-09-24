@@ -20,7 +20,7 @@ It does the job of two well-known free tools in one window: Caesium for photos a
 ## Install it
 
 1. Open the [latest release page](https://github.com/joshov13-dev/squash-media/releases/latest).
-2. Scroll down to **Assets** and click `SquashForge-Setup-0.1.0-x64.exe` (the version number may be higher). Your browser saves it to your Downloads folder. Ignore the two **Source code** files; those are for programmers. If the Source code files are the only ones you can see, the release is brand new and its download is still being built. Wait five minutes and refresh the page.
+2. Scroll down to **Assets** and click `SquashForge-Setup-0.2.0-x64.exe` (the version number may be higher). Your browser saves it to your Downloads folder. Ignore the two **Source code** files; those are for programmers. If the Source code files are the only ones you can see, the release is brand new and its download is still being built. Wait five minutes and refresh the page.
 3. Open your Downloads folder and double-click the file you just downloaded.
 4. Windows will probably show a blue box that says **Windows protected your PC**. Don't worry: Windows shows this for any new program that hasn't paid for a code-signing certificate, and SquashForge hasn't (yet). To get past it:
    - Click the small underlined words **More info**, just under the message. At first the only button is **Don't run**, so it's easy to miss.
@@ -34,7 +34,7 @@ It does the job of two well-known free tools in one window: Caesium for photos a
 
 ### Would rather not install anything?
 
-Download `SquashForge-Portable-0.1.0-x64.exe` instead and double-click it. You'll get the same blue box as above the first time: click **More info**, then **Run anyway**. After that it runs straight away without installing. It takes a few seconds longer to open each time, and the right-click menu in File Explorer only comes with the installed version.
+Download `SquashForge-Portable-0.2.0-x64.exe` instead and double-click it. You'll get the same blue box as above the first time: click **More info**, then **Run anyway**. After that it runs straight away without installing. It takes a few seconds longer to open each time, and the right-click menu in File Explorer only comes with the installed version.
 
 ### Removing it later
 
@@ -308,7 +308,7 @@ Without fetched binaries the app uses `ffmpeg` and `ffprobe` from your `PATH`. `
 
 ### Making a release
 
-Push a tag that starts with `v`, for example `git tag v0.1.0 && git push origin v0.1.0`. The workflow builds the installer and portable exe and attaches both to a GitHub release, which is where the download links in this README point.
+Push a tag that starts with `v`, for example `git tag v0.2.0 && git push origin v0.2.0`. The workflow builds the installer and portable exe and attaches both to a GitHub release, which is where the download links in this README point.
 
 ### How the code is laid out
 
