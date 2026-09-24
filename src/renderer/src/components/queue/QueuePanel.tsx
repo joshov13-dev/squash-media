@@ -22,7 +22,7 @@ function EmptyQueue() {
       <div className="space-y-1.5">
         <p className="font-display text-[15px] font-semibold text-ink">Drop photos and videos here</p>
         <p className="text-[12px] leading-relaxed text-balance text-ink-3">
-          JPEG, PNG, WebP, AVIF, TIFF and BMP photos.
+          JPEG, PNG, WebP, AVIF, HEIC, TIFF and BMP photos.
           <br />
           MP4, MKV, MOV, WebM, AVI and other videos. Folders work too.
         </p>

@@ -7,7 +7,9 @@ import type { QueueStats } from '@shared/types'
 import { getHardwareProfile } from './hardware'
 import { registerIpcHandlers } from './ipc/handlers'
 import { CalibrationStore } from './services/etaCalculator'
-import { getPreferences } from './preferences'
+import { userDataDir, userDataFile } from './appPaths'
+import { getPreferences, usePreferencesFile } from './preferences'
+import { HistoryStore } from './services/history'
 import { JobQueue } from './services/jobQueue'
 import { SystemMonitor } from './systemMonitor'
 
@@ -144,8 +146,9 @@ function createWindow(): void {
   }
 }
 
-// A separate settings folder, for testing or running side by side.
-if (process.env.SQUASHFORGE_USER_DATA) app.setPath('userData', process.env.SQUASHFORGE_USER_DATA)
+// One settings folder for the app, the command line and the AI server.
+// SQUASHFORGE_USER_DATA picks a separate one, for testing or running side by side.
+app.setPath('userData', userDataDir())
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -161,7 +164,9 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     app.setAppUserModelId('com.squashforge.app')
 
-    const calibration = new CalibrationStore(join(app.getPath('userData'), 'eta-calibration.json'))
+    usePreferencesFile(userDataFile('preferences.json'))
+    const calibration = new CalibrationStore(userDataFile('eta-calibration.json'))
+    const history = new HistoryStore(userDataFile('history.json'), { trash: (p) => shell.trashItem(p) })
     queue = new JobQueue({
       getHardware: getHardwareProfile,
       getPreferences,
@@ -169,8 +174,9 @@ if (!app.requestSingleInstanceLock()) {
       emitUpdate: (u) => send(IPC.jobUpdate, u),
       emitStats: onQueueStats,
       trash: (p) => shell.trashItem(p),
+      history,
     })
-    registerIpcHandlers(queue)
+    registerIpcHandlers({ queue, history })
     ipcMain.handle(IPC.takeOpenPaths, () => {
       rendererReady = true
       return pendingPaths.splice(0)
@@ -184,6 +190,7 @@ if (!app.requestSingleInstanceLock()) {
     })
 
     app.on('before-quit', () => {
+      void history.flush()
       queue?.cancelAll()
       monitor?.stop()
     })

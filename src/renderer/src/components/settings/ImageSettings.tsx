@@ -86,7 +86,7 @@ export function ImageSettings() {
           value={image.format}
           onChange={(format) => setImage({ format })}
           options={[
-            { value: 'original', label: 'Same', hint: 'Keep each file’s format (BMP becomes PNG)' },
+            { value: 'original', label: 'Same', hint: 'Keep each file’s format (BMP becomes PNG, HEIC becomes JPEG)' },
             { value: 'jpeg', label: 'JPEG' },
             { value: 'png', label: 'PNG' },
             { value: 'webp', label: 'WebP' },

@@ -4,6 +4,7 @@ import { cn } from '@renderer/lib/cn'
 import { ACTIVE, useQueue } from '@renderer/store/queueStore'
 import { useSystem } from '@renderer/store/systemStore'
 import { HelpPopover } from './HelpPopover'
+import { HistoryDialog } from './HistoryDialog'
 import { Logo } from './Logo'
 import { SettingsDialog } from './SettingsDialog'
 import { Button, Tip } from './ui/controls'
@@ -42,6 +43,7 @@ export function TopBar() {
         Add folder
       </Button>
       <div className="flex-1" />
+      <HistoryDialog />
       <SettingsDialog />
       <HelpPopover />
       {running ? (

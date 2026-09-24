@@ -50,7 +50,7 @@ export interface SystemLoad {
 // Media info
 // ---------------------------------------------------------------------------
 
-export type ImageSourceFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff' | 'bmp'
+export type ImageSourceFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff' | 'bmp' | 'heic'
 
 export interface ImageInfo {
   kind: 'image'
@@ -158,7 +158,10 @@ export type OutputMode = 'suffix' | 'folder' | 'overwrite'
 
 export interface OutputSettings {
   mode: OutputMode
-  suffix: string
+  /** Name for the compressed copy, e.g. "{name}_compressed". See shared/naming. */
+  nameTemplate: string
+  /** In folder mode, rename files with the template too (otherwise names are kept). */
+  renameInFolder: boolean
   folder: string | null
   /** Keep the original when the compressed file would be bigger. */
   keepOriginalIfLarger: boolean
@@ -169,6 +172,17 @@ export interface OutputSettings {
 }
 
 export type WhenDone = 'nothing' | 'sleep' | 'shutdown'
+
+/** A folder whose new photos and videos are compressed as they arrive. */
+export interface WatchFolder {
+  id: string
+  path: string
+  /** Quick tab goal used for new files. */
+  goalId: string
+  /** Where copies go. Null saves them next to the originals. */
+  outputFolder: string | null
+  enabled: boolean
+}
 
 /** App-wide preferences from the Settings window. */
 export interface AppPreferences {
@@ -189,6 +203,9 @@ export interface AppPreferences {
   keepAwake: boolean
   /** Ask before quitting while files are being compressed. */
   confirmQuit: boolean
+  /** Look for a new version on GitHub when the app starts. */
+  checkForUpdates: boolean
+  watchFolders: WatchFolder[]
 }
 
 export interface AppInfo {
@@ -246,8 +263,12 @@ export interface MediaJob extends MediaFile {
   finishedAt?: number
 }
 
+/** Where a batch came from: the window, a watched folder, the command line or an AI app. */
+export type RunOrigin = 'app' | 'watch' | 'cli' | 'ai'
+
 export interface JobRequest {
   id: string
+  origin?: RunOrigin
   filePath: string
   relativeDir?: string
   type: MediaType
@@ -283,6 +304,40 @@ export interface QueueStats {
   /** Size of the finished files before and after, for the run. */
   originalBytes: number
   outputBytes: number
+}
+
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+
+export interface HistoryEntry {
+  jobId: string
+  type: MediaType
+  source: string
+  output: string
+  originalBytes: number
+  outputBytes: number
+  /** Replace mode: the output took the original's place and the original went to the bin. */
+  replaced: boolean
+  /** The original was copied unchanged (compressing did not help). */
+  copied?: boolean
+  sourceMtimeMs: number
+  finishedAt: number
+  undone?: boolean
+}
+
+export interface HistoryRun {
+  id: string
+  origin: RunOrigin
+  startedAt: number
+  finishedAt: number
+  entries: HistoryEntry[]
+}
+
+export interface UndoResult {
+  ok: boolean
+  jobId?: string
+  message: string
 }
 
 // ---------------------------------------------------------------------------

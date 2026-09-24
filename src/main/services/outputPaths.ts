@@ -1,5 +1,6 @@
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { CONTAINER_EXTENSIONS, IMAGE_FORMAT_EXTENSIONS, type ResolvedImageFormat } from '@shared/codecs'
+import { DEFAULT_NAME_TEMPLATE, renderName } from '@shared/naming'
 import type { ImageSourceFormat, OutputSettings, VideoContainer } from '@shared/types'
 
 export interface OutputPlan {
@@ -24,10 +25,41 @@ export function videoOutputExtension(container: VideoContainer): string {
   return CONTAINER_EXTENSIONS[container]
 }
 
-export function planOutputPath(sourcePath: string, outputExt: string, settings: OutputSettings, relativeDir?: string): OutputPlan {
+/** What the name template needs to know about the source. */
+export interface NamingInput {
+  modified?: Date
+  /** 1-based position in the batch, for {n}. */
+  index?: number
+  now?: Date
+}
+
+export function planOutputPath(
+  sourcePath: string,
+  outputExt: string,
+  settings: OutputSettings,
+  relativeDir?: string,
+  naming: NamingInput = {},
+): OutputPlan {
   const dir = dirname(sourcePath)
   const base = basename(sourcePath, extname(sourcePath))
-  const suffix = settings.suffix.trim() || '_compressed'
+  const named = (template: string): string =>
+    renderName(template, {
+      name: base,
+      folder: basename(dir),
+      modified: naming.modified ?? new Date(),
+      index: naming.index ?? 1,
+      format: outputExt.replace(/^\./, '').toLowerCase(),
+      now: naming.now,
+    })
+  const template = settings.nameTemplate?.trim() || DEFAULT_NAME_TEMPLATE
+  // Never let a template land on the original in the same folder: that is
+  // what Replace mode is for, and Replace sends the original to the bin first.
+  const safe = (folder: string, name: string): string => {
+    const candidate = join(folder, name + outputExt)
+    if (!samePath(candidate, sourcePath)) return candidate
+    const fallback = named(DEFAULT_NAME_TEMPLATE)
+    return join(folder, (fallback === name ? name + '_compressed' : fallback) + outputExt)
+  }
 
   if (settings.mode === 'overwrite') {
     return { finalPath: join(dir, base + outputExt), replacesSource: true }
@@ -35,11 +67,9 @@ export function planOutputPath(sourcePath: string, outputExt: string, settings: 
   if (settings.mode === 'folder' && settings.folder) {
     // Recreate the dropped folder's layout so same-named files cannot collide.
     const folder = settings.keepFolderStructure && relativeDir ? join(settings.folder, relativeDir) : settings.folder
-    let finalPath = join(folder, base + outputExt)
-    if (samePath(finalPath, sourcePath)) finalPath = join(folder, base + suffix + outputExt)
-    return { finalPath, replacesSource: false }
+    return { finalPath: safe(folder, settings.renameInFolder ? named(template) : base), replacesSource: false }
   }
-  return { finalPath: join(dir, base + suffix + outputExt), replacesSource: false }
+  return { finalPath: safe(dir, named(template)), replacesSource: false }
 }
 
 /**

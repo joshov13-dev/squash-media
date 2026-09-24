@@ -2,6 +2,7 @@ import type {
   AppInfo,
   AppPreferences,
   HardwareProfile,
+  HistoryRun,
   ImageOriginal,
   ImagePreviewRequest,
   ImagePreviewResult,
@@ -11,6 +12,7 @@ import type {
   QueueStats,
   ResolveResult,
   SystemLoad,
+  UndoResult,
   VideoPreviewRequest,
   VideoPreviewResult,
   WhenDone,
@@ -35,6 +37,10 @@ export const IPC = {
   openPath: 'shell:open',
   powerAction: 'power:action',
   setPreferences: 'app:set-preferences',
+  historyList: 'history:list',
+  historyUndoRun: 'history:undo-run',
+  historyUndoEntry: 'history:undo-entry',
+  copyText: 'clipboard:write',
   // main -> renderer
   jobUpdate: 'queue:update',
   queueStats: 'queue:stats',
@@ -67,6 +73,11 @@ export interface SquashApi {
   revealInFolder(path: string): Promise<void>
   openPath(path: string): Promise<void>
   setPreferences(prefs: AppPreferences): Promise<void>
+  /** Newest first, including runs from the command line and AI apps. */
+  listHistory(limit?: number): Promise<HistoryRun[]>
+  undoRun(runId: string): Promise<UndoResult[]>
+  undoEntry(runId: string, jobId: string): Promise<UndoResult>
+  copyText(text: string): Promise<void>
   /** Put the PC to sleep or shut it down once the queue is finished. */
   powerAction(action: Exclude<WhenDone, 'nothing'>): Promise<void>
   onJobUpdate(cb: (update: JobUpdate) => void): Unsubscribe

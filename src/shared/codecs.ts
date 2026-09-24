@@ -20,6 +20,8 @@ export const IMAGE_EXTENSIONS: Record<string, ImageSourceFormat> = {
   '.tif': 'tiff',
   '.tiff': 'tiff',
   '.bmp': 'bmp',
+  '.heic': 'heic',
+  '.heif': 'heic',
 }
 
 export const VIDEO_EXTENSIONS = new Set([
@@ -173,6 +175,8 @@ export function resolveImageFormat(
 ): ResolvedImageFormat {
   if (requested !== 'original') return requested
   if (source === 'bmp') return 'png'
+  // Nothing here can write HEVC stills, and JPEG opens everywhere.
+  if (source === 'heic') return 'jpeg'
   return source
 }
 

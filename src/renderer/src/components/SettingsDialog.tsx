@@ -2,6 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Settings, X } from 'lucide-react'
 import { useState } from 'react'
 import { ENCODER_LABELS } from '@shared/codecs'
+import { exampleName } from '@shared/naming'
 import { useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
 import { Button, Field, Segmented, Toggle } from './ui/controls'
@@ -19,7 +20,7 @@ export function SettingsDialog() {
   const prefs = useSettings((s) => s.preferences)
   const set = useSettings((s) => s.setPreferences)
   const resetAll = useSettings((s) => s.resetAll)
-  const suffix = useSettings((s) => s.output.suffix.trim() || '_compressed')
+  const nameTemplate = useSettings((s) => s.output.nameTemplate)
   const hw = useSystem((s) => s.hardware)
   const [confirmReset, setConfirmReset] = useState(false)
 
@@ -102,7 +103,7 @@ export function SettingsDialog() {
             <Group title="Big batches">
               <Toggle
                 label="Leave out earlier copies"
-                hint={`When you add a folder, files whose names end in "${suffix}" are left out, so they are not compressed twice.`}
+                hint={`When you add a folder, files named like ${exampleName(nameTemplate)} are left out, so they are not compressed twice.`}
                 checked={prefs.skipCompressedNames}
                 onChange={(skipCompressedNames) => set({ skipCompressedNames })}
               />

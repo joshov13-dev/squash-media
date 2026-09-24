@@ -10,6 +10,7 @@ import type {
   ImageSourceFormat,
 } from '@shared/types'
 import { decodeBmp, isBmp } from './bmp'
+import { decodeHeic } from './heic'
 import { stripJpegMetadata } from './jpegStrip'
 
 // libvips' operation cache holds file handles open on Windows, which blocks
@@ -58,7 +59,8 @@ function mapSharpFormat(format: string | undefined, compression?: string): Image
     case 'tiff':
       return 'tiff'
     case 'heif':
-      return compression === 'av1' ? 'avif' : null
+      if (compression === 'av1') return 'avif'
+      return compression === 'hevc' ? 'heic' : null
     default:
       return null
   }
@@ -118,6 +120,10 @@ export async function loadImage(filePath: string, data?: Buffer): Promise<Loaded
     }
   }
   const info = await readImageInfo(filePath, buf)
+  if (info.format === 'heic') {
+    const decoded = await decodeHeic(filePath, buf, info)
+    return { input: decoded.png, options: {}, format: 'heic', width: decoded.width, height: decoded.height, hasAlpha: false }
+  }
   return {
     input: buf,
     options: { autoOrient: true },

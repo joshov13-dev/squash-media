@@ -146,12 +146,17 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: 'squashforge-settings',
-      version: 2,
+      version: 3,
       // Version 1 defaulted videos to the CPU. "Auto" uses the graphics card
       // when there is one, and still falls back to the CPU when there is not.
       migrate: (persisted, version) => {
         const p = (persisted ?? {}) as Partial<SettingsState>
         if (version < 2 && p.video?.encoderMode === 'cpu') p.video = { ...p.video, encoderMode: 'auto' }
+        // Version 3 swapped the name ending for a full name pattern.
+        if (version < 3 && p.output) {
+          const { suffix, ...rest } = p.output as OutputSettings & { suffix?: string }
+          p.output = { ...rest, nameTemplate: `{name}${suffix?.trim() || '_compressed'}` }
+        }
         return p as SettingsState
       },
       // Merge saved settings over defaults so new fields get sensible values.

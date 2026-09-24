@@ -24,6 +24,8 @@
   !insertmacro ${MACRO} ".tif"
   !insertmacro ${MACRO} ".tiff"
   !insertmacro ${MACRO} ".bmp"
+  !insertmacro ${MACRO} ".heic"
+  !insertmacro ${MACRO} ".heif"
   !insertmacro ${MACRO} ".mp4"
   !insertmacro ${MACRO} ".m4v"
   !insertmacro ${MACRO} ".mov"

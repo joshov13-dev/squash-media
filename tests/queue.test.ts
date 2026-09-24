@@ -77,7 +77,7 @@ describe('output paths', () => {
     expect(planOutputPath(src, '.webp', { ...DEFAULT_OUTPUT, mode: 'folder', folder: '/out' }).finalPath).toBe(join('/out', 'cat.webp'))
     expect(planOutputPath(src, '.JPG', { ...DEFAULT_OUTPUT, mode: 'folder', folder: '/photos' }).finalPath).toBe(join('/photos', 'cat_compressed.JPG'))
     expect(planOutputPath(src, '.webp', { ...DEFAULT_OUTPUT, mode: 'overwrite' })).toEqual({ finalPath: join('/photos', 'cat.webp'), replacesSource: true })
-    expect(planOutputPath(src, '.JPG', { ...DEFAULT_OUTPUT, suffix: '  ' }).finalPath).toBe(join('/photos', 'cat_compressed.JPG'))
+    expect(planOutputPath(src, '.JPG', { ...DEFAULT_OUTPUT, nameTemplate: '  ' }).finalPath).toBe(join('/photos', 'cat_compressed.JPG'))
   })
 
   it('keeps the original extension spelling when the format is unchanged', () => {

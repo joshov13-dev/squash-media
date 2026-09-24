@@ -1,3 +1,4 @@
+import { DEFAULT_NAME_TEMPLATE } from './naming'
 import type { AppPreferences, ImageJobConfig, OutputSettings, VideoJobConfig } from './types'
 
 export const MB = 1024 * 1024
@@ -46,11 +47,14 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   notifyWhenDone: true,
   keepAwake: true,
   confirmQuit: true,
+  checkForUpdates: true,
+  watchFolders: [],
 }
 
 export const DEFAULT_OUTPUT: OutputSettings = {
   mode: 'suffix',
-  suffix: '_compressed',
+  nameTemplate: DEFAULT_NAME_TEMPLATE,
+  renameInFolder: false,
   folder: null,
   keepOriginalIfLarger: true,
   preserveTimestamps: true,

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { formatEta } from '@shared/format'
+import { looksLikeOutput } from '@shared/naming'
 import type { ImageJobConfig, JobRequest, JobStatus, JobUpdate, MediaFile, MediaJob, TrimRange, VideoJobConfig } from '@shared/types'
 import { api } from '@renderer/lib/api'
 import { effectiveImageConfig, effectiveVideoConfig } from '@renderer/lib/effective'
@@ -84,9 +85,8 @@ export const useQueue = create<QueueState>()((set, get) => ({
       const { files: found, rejected } = await api.resolveMedia(paths)
       // Adding a folder again should not pick up the copies made last time.
       const { preferences, output } = useSettings.getState()
-      const suffix = (output.suffix.trim() || '_compressed').toLowerCase()
       const earlierOutput = (f: MediaFile): boolean =>
-        preferences.skipCompressedNames && f.relativeDir !== undefined && f.fileName.replace(/\.[^.]+$/, '').toLowerCase().endsWith(suffix)
+        preferences.skipCompressedNames && f.relativeDir !== undefined && looksLikeOutput(f.fileName.replace(/\.[^.]+$/, ''), output.nameTemplate)
       const files = found.filter((f) => !earlierOutput(f))
       const leftOut = found.length - files.length
       const known = new Set(get().jobs.map((j) => j.filePath.toLowerCase()))
@@ -99,7 +99,7 @@ export const useQueue = create<QueueState>()((set, get) => ({
       const parts: string[] = []
       if (rejected.length) parts.push(`${rejected.length} skipped (${rejected[0].reason.toLowerCase()}${rejected.length > 1 ? ', ...' : ''})`)
       if (dupes) parts.push(`${dupes} already in the queue`)
-      if (leftOut) parts.push(`${leftOut} earlier ${leftOut === 1 ? 'copy' : 'copies'} ending in ${suffix} left out`)
+      if (leftOut) parts.push(`${leftOut} earlier compressed ${leftOut === 1 ? 'copy' : 'copies'} left out`)
       if (!found.length && !rejected.length) parts.push('No photos or videos found there')
       if (parts.length) {
         clearTimeout(noticeTimer)

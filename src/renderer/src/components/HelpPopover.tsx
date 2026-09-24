@@ -1,14 +1,22 @@
 import * as Popover from '@radix-ui/react-popover'
 import { CircleHelp } from 'lucide-react'
+import { exampleName } from '@shared/naming'
 import type { OutputSettings } from '@shared/types'
 import { useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
 
 export function whereFilesGo(output: OutputSettings): string {
-  const suffix = output.suffix.trim() || '_compressed'
-  if (output.mode === 'folder' && output.folder) return `New files are saved in ${output.folder}.`
-  if (output.mode === 'overwrite') return 'New files replace the originals. The originals go to the Recycle Bin.'
-  return `New files are saved next to the originals, with "${suffix}" added to the name.`
+  if (output.mode === 'folder' && output.folder) {
+    const renamed = output.renameInFolder ? ` holiday.jpg becomes ${exampleName(output.nameTemplate)}.` : ''
+    return `New files are saved in ${output.folder}.${renamed}`
+  }
+  if (output.mode === 'overwrite') return `New files replace the originals. The originals go to the ${binName()}.`
+  return `New files are saved next to the originals. holiday.jpg becomes ${exampleName(output.nameTemplate)}.`
+}
+
+/** What the recycle bin is called on this system. */
+export function binName(): string {
+  return window.api.platform === 'win32' ? 'Recycle Bin' : 'Trash'
 }
 
 const SHORTCUTS: Array<[string, string]> = [

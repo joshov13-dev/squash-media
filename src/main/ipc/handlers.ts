@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { existsSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/codecs'
@@ -17,6 +17,7 @@ import { getHardwareProfile } from '../hardware'
 import { runPowerAction } from '../power'
 import { setPreferences } from '../preferences'
 import { generateImagePreview, getDisplayableOriginal, makeImageThumbnail } from '../services/imageProcessor'
+import type { HistoryStore } from '../services/history'
 import type { JobQueue } from '../services/jobQueue'
 import { resolveMedia } from '../services/mediaResolver'
 import { generateVideoPreview, makeVideoThumbnail } from '../services/videoProcessor'
@@ -65,7 +66,12 @@ function assertPath(p: unknown): string {
   return p
 }
 
-export function registerIpcHandlers(queue: JobQueue): void {
+export interface IpcServices {
+  queue: JobQueue
+  history: HistoryStore
+}
+
+export function registerIpcHandlers({ queue, history }: IpcServices): void {
   // Quick and full previews queue separately so a slow full encode (say AVIF)
   // never holds up the instant feedback for the next slider move.
   const quickPreviews = new LatestOnly<ImagePreviewRequest, ImagePreviewResult>((req) => generateImagePreview(req))
@@ -163,6 +169,11 @@ export function registerIpcHandlers(queue: JobQueue): void {
   })
   ipcMain.handle(IPC.cancelJob, (_e, id: string) => queue.cancel(id))
   ipcMain.handle(IPC.cancelAll, () => queue.cancelAll())
+
+  ipcMain.handle(IPC.historyList, (_e, limit: unknown) => history.list(typeof limit === 'number' ? limit : 50))
+  ipcMain.handle(IPC.historyUndoRun, (_e, runId: unknown) => history.undoRun(String(runId)))
+  ipcMain.handle(IPC.historyUndoEntry, (_e, runId: unknown, jobId: unknown) => history.undoEntry(String(runId), String(jobId)))
+  ipcMain.handle(IPC.copyText, (_e, text: unknown) => clipboard.writeText(String(text)))
 
   ipcMain.handle(IPC.revealInFolder, (_e, p: unknown) => shell.showItemInFolder(assertPath(p)))
   ipcMain.handle(IPC.openPath, async (_e, p: unknown) => {

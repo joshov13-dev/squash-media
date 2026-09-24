@@ -7,6 +7,10 @@ interface Rule {
 
 const RULES: Rule[] = [
   {
+    test: /could not be moved to the Recycle Bin, so it was not replaced/i,
+    message: 'The original could not be moved to the Recycle Bin, so it was left as it was. Try Same folder or Other folder instead.',
+  },
+  {
     test: /spawn .*(ffmpeg|ffprobe).* ENOENT/i,
     message: 'FFmpeg is missing, so videos cannot be processed. Reinstalling SquashForge puts it back.',
   },
@@ -20,7 +24,7 @@ const RULES: Rule[] = [
   },
   {
     test: /EACCES|EPERM|permission denied|operation not permitted|Access is denied/i,
-    message: 'Windows would not let SquashForge save here. Pick another output folder, or check the file is not read-only.',
+    message: 'The system would not let SquashForge save here. Pick another output folder, or check the file is not read-only.',
   },
   {
     test: /ENOENT|No such file or directory/i,
