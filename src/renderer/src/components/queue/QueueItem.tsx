@@ -1,4 +1,4 @@
-import { Film, FolderOpen, Image as ImageIcon, RotateCcw, X } from 'lucide-react'
+import { ClipboardCopy, Film, FolderOpen, Image as ImageIcon, RotateCcw, X } from 'lucide-react'
 import { memo } from 'react'
 import { formatBytes, savingsPercent } from '@shared/format'
 import type { MediaJob } from '@shared/types'
@@ -103,6 +103,7 @@ export const QueueItem = memo(function QueueItem({ job, selected }: { job: Media
   const remove = useQueue((s) => s.remove)
   const retry = useQueue((s) => s.retry)
   const cancel = useQueue((s) => s.cancel)
+  const copyReport = useQueue((s) => s.copyReport)
   const active = ACTIVE.includes(job.status)
 
   return (
@@ -136,6 +137,11 @@ export const QueueItem = memo(function QueueItem({ job, selected }: { job: Media
         )}
         onClick={(e) => e.stopPropagation()}
       >
+        {job.status === 'failed' && (
+          <IconButton label="Copy the details, for a bug report" onClick={() => void copyReport([job.id])}>
+            <ClipboardCopy size={14} />
+          </IconButton>
+        )}
         {job.outputPath && (
           <IconButton label="Show in folder" onClick={() => void api.revealInFolder(job.outputPath!)}>
             <FolderOpen size={14} />

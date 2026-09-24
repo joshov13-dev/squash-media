@@ -184,6 +184,12 @@ export interface WatchFolder {
   enabled: boolean
 }
 
+export interface WatchStatus {
+  id: string
+  watching: boolean
+  error?: string
+}
+
 /** App-wide preferences from the Settings window. */
 export interface AppPreferences {
   /** Videos encoded side by side. Graphics card encoders benefit most. */
@@ -206,6 +212,50 @@ export interface AppPreferences {
   /** Look for a new version on GitHub when the app starts. */
   checkForUpdates: boolean
   watchFolders: WatchFolder[]
+}
+
+export interface UpdateState {
+  state: 'idle' | 'checking' | 'none' | 'available' | 'downloading' | 'ready' | 'error'
+  /** The running version. */
+  current: string
+  /** The newest version found. */
+  version?: string
+  /** Download progress, 0-100. */
+  percent?: number
+  notes?: string
+  /** Release page, for copies that cannot update themselves. */
+  url?: string
+  error?: string
+  lastChecked?: number
+  /** True when this copy downloads and installs updates by itself. */
+  selfUpdate: boolean
+}
+
+export interface AiAppStatus {
+  id: string
+  name: string
+  installed: boolean
+  connected: boolean
+  /** The settings file SquashForge edits. Null for Claude Code, which has its own command. */
+  configPath: string | null
+  /** What to do after connecting, e.g. restart the app. */
+  after: string
+}
+
+export interface IntegrationsInfo {
+  /** False for copies that move around (portable, AppImage). */
+  supported: boolean
+  problem?: string
+  apps: AiAppStatus[]
+  /** For apps not listed: the JSON to paste into their MCP settings. */
+  manualJson: string | null
+  claudeCodeCommand: string | null
+  command: { path: string; installed: boolean; onPath: boolean }
+}
+
+export interface IntegrationResult {
+  ok: boolean
+  message: string
 }
 
 export interface AppInfo {
@@ -250,6 +300,9 @@ export interface MediaJob extends MediaFile {
   videoOverride?: VideoJobConfig
   /** Part of a video to keep. */
   trim?: TrimRange
+  /** Where this file's copy goes, when not the shared Output settings (watched folders). */
+  outputOverride?: OutputSettings
+  origin?: RunOrigin
   status: JobStatus
   progress: ProgressStatus
   compressedSizeBytes?: number

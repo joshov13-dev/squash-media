@@ -16,11 +16,14 @@ function useBridge(): void {
     const system = useSystem.getState()
     void api.getHardwareProfile().then(system.setHardware)
     void api.getAppInfo().then(system.setApp)
+    void api.getUpdateState().then(system.setUpdate)
     const offs = [
       api.onJobUpdate((u) => useQueue.getState().applyUpdate(u)),
       api.onQueueStats((s) => useSystem.getState().setStats(s)),
       api.onSystemLoad((l) => useSystem.getState().setLoad(l)),
       api.onOpenPaths((paths) => void useQueue.getState().addPaths(paths)),
+      api.onUpdateState((u) => useSystem.getState().setUpdate(u)),
+      api.onWatchFound(({ watchId, paths }) => void useQueue.getState().addWatched(watchId, paths)),
     ]
     // Subscribe first, then collect anything opened before the window was ready.
     void api.takeOpenPaths().then((paths) => useQueue.getState().addPaths(paths))

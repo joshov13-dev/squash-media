@@ -1,9 +1,11 @@
 import { create } from 'zustand'
 import { formatEta } from '@shared/format'
 import { looksLikeOutput } from '@shared/naming'
-import type { ImageJobConfig, JobRequest, JobStatus, JobUpdate, MediaFile, MediaJob, TrimRange, VideoJobConfig } from '@shared/types'
+import { GOALS } from '@shared/presets'
+import type { ImageJobConfig, JobRequest, JobStatus, JobUpdate, MediaFile, MediaJob, OutputSettings, TrimRange, VideoJobConfig } from '@shared/types'
 import { api } from '@renderer/lib/api'
 import { effectiveImageConfig, effectiveVideoConfig } from '@renderer/lib/effective'
+import { problemReport } from '@renderer/lib/report'
 import { useSettings } from './settingsStore'
 import { useSystem } from './systemStore'
 
@@ -19,6 +21,8 @@ interface QueueState {
   notice: string | null
 
   addPaths: (paths: string[]) => Promise<void>
+  /** New files from a watched folder: add them with that folder's goal and start them. */
+  addWatched: (watchId: string, paths: string[]) => Promise<void>
   select: (id: string | null) => void
   selectNext: (delta: number) => void
   remove: (id: string) => void
@@ -26,11 +30,15 @@ interface QueueState {
   clearAll: () => void
   requeueFinished: () => void
   retry: (id: string) => void
-  start: () => Promise<void>
+  /** Start every waiting job, or just these. */
+  start: (ids?: string[]) => Promise<void>
   cancel: (id: string) => void
   stopAll: () => void
   applyUpdate: (u: JobUpdate) => void
   dismissNotice: () => void
+  showNotice: (text: string) => void
+  /** Copy a problem report for these jobs (or every failed one) to the clipboard. */
+  copyReport: (ids?: string[]) => Promise<void>
   setImageOverride: (id: string, config: ImageJobConfig | undefined) => void
   setVideoOverride: (id: string, config: VideoJobConfig | undefined) => void
   setTrim: (id: string, trim: TrimRange | undefined) => void
@@ -101,11 +109,7 @@ export const useQueue = create<QueueState>()((set, get) => ({
       if (dupes) parts.push(`${dupes} already in the queue`)
       if (leftOut) parts.push(`${leftOut} earlier compressed ${leftOut === 1 ? 'copy' : 'copies'} left out`)
       if (!found.length && !rejected.length) parts.push('No photos or videos found there')
-      if (parts.length) {
-        clearTimeout(noticeTimer)
-        set({ notice: parts.join(' · ') })
-        noticeTimer = setTimeout(() => set({ notice: null }), 6000)
-      }
+      if (parts.length) get().showNotice(parts.join(' · '))
       void loadThumbnails(fresh)
     } finally {
       set((s) => ({ adding: s.adding - 1 }))
@@ -148,10 +152,10 @@ export const useQueue = create<QueueState>()((set, get) => ({
 
   retry: (id) => set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? resetJob(j) : j)) })),
 
-  start: async () => {
+  start: async (only) => {
     const settings = useSettings.getState()
     const hardware = useSystem.getState().hardware
-    const runnable = get().jobs.filter((j) => RUNNABLE.includes(j.status))
+    const runnable = get().jobs.filter((j) => RUNNABLE.includes(j.status) && (!only || only.includes(j.id)))
     if (!runnable.length) return
 
     const requests: JobRequest[] = []
@@ -170,7 +174,8 @@ export const useQueue = create<QueueState>()((set, get) => ({
         info: job.info,
         imageConfig: job.type === 'image' ? effectiveImageConfig(job, settings.image) : undefined,
         videoConfig: job.type === 'video' ? effectiveVideoConfig(job, settings.video) : undefined,
-        output: settings.output,
+        output: job.outputOverride ?? settings.output,
+        origin: job.origin ?? 'app',
       })
     }
     const ids = new Set(requests.map((r) => r.id))
@@ -209,7 +214,61 @@ export const useQueue = create<QueueState>()((set, get) => ({
       }),
     })),
 
+  addWatched: async (watchId, paths) => {
+    const { preferences, output, video } = useSettings.getState()
+    const watch = preferences.watchFolders.find((w) => w.id === watchId)
+    if (!watch?.enabled) return
+    const goal = GOALS.find((g) => g.id === watch.goalId) ?? GOALS[0]
+    const { files } = await api.resolveMedia(paths)
+    const outputs = new Set(get().jobs.map((j) => j.outputPath?.toLowerCase()).filter(Boolean))
+    const known = new Set(get().jobs.map((j) => j.filePath.toLowerCase()))
+    const fresh = files.filter(
+      (f) =>
+        !known.has(f.filePath.toLowerCase()) &&
+        !outputs.has(f.filePath.toLowerCase()) &&
+        // Copies saved into the watched folder itself must not be picked up again.
+        !looksLikeOutput(f.fileName.replace(/\.[^.]+$/, ''), output.nameTemplate),
+    )
+    if (!fresh.length) return
+    const jobOutput: OutputSettings = watch.outputFolder
+      ? { ...output, mode: 'folder', folder: watch.outputFolder, keepFolderStructure: true, renameInFolder: false }
+      : { ...output, mode: 'suffix' }
+    const jobs = fresh.map((f): MediaJob => {
+      const folder = f.filePath.slice(0, f.filePath.length - f.fileName.length - 1)
+      const below = folder.length > watch.path.length ? folder.slice(watch.path.length).replace(/^[\\/]+/, '') : ''
+      return {
+        ...toJob(f),
+        relativeDir: below || undefined,
+        imageOverride: f.type === 'image' ? { ...goal.image, resize: { ...goal.image.resize } } : undefined,
+        // Keep the graphics card choice from the Videos tab.
+        videoOverride: f.type === 'video' ? { ...goal.video, encoderMode: video.encoderMode } : undefined,
+        outputOverride: jobOutput,
+        origin: 'watch',
+      }
+    })
+    set((s) => ({ jobs: [...s.jobs, ...jobs], selectedId: s.selectedId ?? jobs[0].id }))
+    void loadThumbnails(fresh)
+    const name = watch.path.split(/[\\/]/).filter(Boolean).pop() ?? watch.path
+    get().showNotice(`${jobs.length} new ${jobs.length === 1 ? 'file' : 'files'} in ${name}, compressing with "${goal.name}"`)
+    await get().start(jobs.map((j) => j.id))
+  },
+
   dismissNotice: () => set({ notice: null }),
+
+  showNotice: (text) => {
+    clearTimeout(noticeTimer)
+    set({ notice: text })
+    noticeTimer = setTimeout(() => set({ notice: null }), 6000)
+  },
+
+  copyReport: async (ids) => {
+    const jobs = get().jobs.filter((j) => (ids ? ids.includes(j.id) : j.status === 'failed'))
+    if (!jobs.length) return
+    const { image, video } = useSettings.getState()
+    const { app, hardware } = useSystem.getState()
+    await api.copyText(problemReport(jobs, { app, hardware, image, video }))
+    get().showNotice(`Copied the details of ${jobs.length === 1 ? jobs[0].fileName : `${jobs.length} files`}. Paste them into a bug report.`)
+  },
 
   setImageOverride: (id, config) => set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, imageOverride: config } : j)) })),
   setVideoOverride: (id, config) => set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, videoOverride: config } : j)) })),

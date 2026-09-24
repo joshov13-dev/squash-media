@@ -85,7 +85,7 @@ export class JobQueue {
   private runningImages = 0
   private runningVideos = 0
   private runStartedAt = 0
-  private runId = randomUUID()
+  private runId = randomUUID().slice(0, 8)
   private ticker: NodeJS.Timeout | null = null
   /** Output paths handed out in this run, so two jobs never share one. */
   private claimed = new Set<string>()
@@ -99,7 +99,7 @@ export class JobQueue {
       this.items = []
       this.claimed.clear()
       this.runStartedAt = Date.now()
-      this.runId = randomUUID()
+      this.runId = randomUUID().slice(0, 8)
     }
     for (const req of requests) {
       const existing = this.items.find((i) => i.req.id === req.id)
@@ -137,6 +137,20 @@ export class JobQueue {
 
   cancelAll(): void {
     for (const item of this.items) this.cancel(item.req.id)
+  }
+
+  /**
+   * Predicted seconds for each request, and for the whole lot with photos and
+   * videos running side by side. Used for dry runs.
+   */
+  async estimate(requests: JobRequest[]): Promise<{ perFile: number[]; total: number }> {
+    this.hardware ??= await this.deps.getHardware()
+    const perFile = requests.map((r) => this.predict(r))
+    let images = 0
+    let videos = 0
+    requests.forEach((r, i) => (r.type === 'image' ? (images += perFile[i]) : (videos += perFile[i])))
+    const total = Math.max(images / imageLaneSpeedup(this.imageLanes()), videos / imageLaneSpeedup(this.deps.getPreferences().videosAtOnce))
+    return { perFile, total }
   }
 
   get busy(): boolean {

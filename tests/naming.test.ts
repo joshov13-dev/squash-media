@@ -54,3 +54,14 @@ describe('name templates', () => {
     expect(planOutputPath(src, '.jpg', { ...folder, renameInFolder: true }, undefined, naming).finalPath).toBe(join('/out', 'cat-003.jpg'))
   })
 })
+
+describe('version numbers', () => {
+  it('orders releases', async () => {
+    const { compareVersions } = await import('@shared/versions')
+    expect(compareVersions('0.3.0', '0.2.0')).toBe(1)
+    expect(compareVersions('v0.2.10', '0.2.9')).toBe(1)
+    expect(compareVersions('0.2.0', '0.2.0')).toBe(0)
+    expect(compareVersions('1.0.0-beta.1', '1.0.0')).toBe(-1)
+    expect(compareVersions('0.2', '0.2.1')).toBe(-1)
+  })
+})

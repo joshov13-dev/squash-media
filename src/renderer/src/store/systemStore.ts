@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppInfo, HardwareProfile, QueueStats, SystemLoad, WhenDone } from '@shared/types'
+import type { AppInfo, HardwareProfile, QueueStats, SystemLoad, UpdateState, WhenDone } from '@shared/types'
 
 interface SystemState {
   app: AppInfo | null
@@ -10,6 +10,8 @@ interface SystemState {
   finished: QueueStats | null
   /** What to do when the queue finishes. Resets each session on purpose. */
   whenDone: WhenDone
+  update: UpdateState | null
+  setUpdate: (u: UpdateState) => void
   setApp: (a: AppInfo) => void
   setHardware: (h: HardwareProfile) => void
   setLoad: (l: SystemLoad) => void
@@ -25,6 +27,8 @@ export const useSystem = create<SystemState>()((set, get) => ({
   stats: null,
   finished: null,
   whenDone: 'nothing',
+  update: null,
+  setUpdate: (update) => set({ update }),
   setApp: (app) => set({ app }),
   setHardware: (hardware) => set({ hardware }),
   setLoad: (load) => set({ load }),
