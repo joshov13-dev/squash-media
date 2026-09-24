@@ -1,4 +1,4 @@
-import { CODECS, ENCODER_LABELS, IMAGE_FORMAT_LABELS, resolveImageFormat } from '@shared/codecs'
+import { CODECS, IMAGE_FORMAT_LABELS, pickEncoderMode, resolveImageFormat } from '@shared/codecs'
 import { formatBytes, formatDuration, formatTimecode } from '@shared/format'
 import type { HardwareProfile, ImageInfo, ImageJobConfig, MediaJob, VideoInfo, VideoJobConfig } from '@shared/types'
 
@@ -44,10 +44,9 @@ export function describeImagePlan(info: ImageInfo, c: ImageJobConfig): string {
 }
 
 export function describeVideoPlan(info: VideoInfo, c: VideoJobConfig, hw: HardwareProfile | null): string {
-  const supported = hw?.encoderSupport[c.codec] ?? ['cpu']
-  const mode = supported.includes(c.encoderMode) ? c.encoderMode : 'cpu'
+  const mode = pickEncoderMode(c.encoderMode, c.codec, hw?.encoderSupport[c.codec] ?? ['cpu'])
   const parts = [videoCodecName(c.codec)]
-  if (mode !== 'cpu') parts.push(ENCODER_LABELS[mode].split(' ').pop()!)
+  if (mode !== 'cpu') parts.push(`${mode.toUpperCase()} (graphics card)`)
   if (c.rateControl === 'crf') parts.push(`${c.codec === 'h264' || c.codec === 'hevc' ? 'RF' : 'CRF'} ${c.crf}`)
   else if (c.rateControl === 'targetSize') parts.push(`under ${formatBytes(c.targetMaxSizeBytes, 0)}`)
   else parts.push(`${c.targetBitrateKbps} kbps`)

@@ -1,6 +1,6 @@
-import { CODECS, ENCODER_LABELS, ENCODER_NAMES } from '@shared/codecs'
+import { CODECS, ENCODER_LABELS, ENCODER_NAMES, pickEncoderMode } from '@shared/codecs'
 import { MB } from '@shared/presets'
-import type { EncoderMode, MediaJob, VideoCodec, VideoInfo } from '@shared/types'
+import type { EncoderChoice, EncoderMode, MediaJob, VideoCodec, VideoInfo } from '@shared/types'
 import { useVideoEditor } from '@renderer/store/editors'
 import { allVideoPresets, useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
@@ -26,17 +26,30 @@ export function VideoSettings() {
   const hardware = useSystem((s) => s.hardware)
   const spec = CODECS[video.codec]
   const supported = hardware?.encoderSupport[video.codec] ?? ['cpu']
-  const hwEncoder = video.encoderMode !== 'cpu' && supported.includes(video.encoderMode)
+  const resolved = pickEncoderMode(video.encoderMode, video.codec, supported)
+  const hwEncoder = resolved !== 'cpu'
   const twoPassPossible = !hwEncoder && video.codec !== 'av1'
+  const autoPick = pickEncoderMode('auto', video.codec, supported)
 
-  const encoderOptions = (['cpu', 'nvenc', 'qsv', 'amf'] as EncoderMode[]).map((mode) => {
+  const encoderOptions: Array<{ value: EncoderChoice; label: string; disabled?: boolean; hint: string }> = [
+    {
+      value: 'auto',
+      label: 'Auto',
+      hint:
+        autoPick === 'cpu'
+          ? `No graphics card here can encode ${spec.label}, so Auto uses the CPU`
+          : `Uses ${ENCODER_LABELS[autoPick]} (much faster), and the CPU if it ever fails`,
+    },
+  ]
+  for (const mode of ['cpu', 'nvenc', 'qsv', 'amf'] as EncoderMode[]) {
     const exists = ENCODER_NAMES[video.codec][mode] !== null
     const works = supported.includes(mode)
     let hint = `${ENCODER_LABELS[mode]}: ${ENCODER_NAMES[video.codec][mode]}`
     if (!exists) hint = `${ENCODER_LABELS[mode]} cannot encode ${spec.label}`
     else if (!works) hint = mode === 'cpu' ? 'This FFmpeg build lacks the encoder' : `${ENCODER_LABELS[mode]} was not detected on this PC`
-    return { value: mode, label: ENCODER_SHORT[mode], disabled: !works, hint }
-  })
+    encoderOptions.push({ value: mode, label: ENCODER_SHORT[mode], disabled: !works, hint })
+  }
+  const encoderValue: EncoderChoice = video.encoderMode === 'auto' || supported.includes(video.encoderMode) ? video.encoderMode : 'cpu'
 
   const codecOptions = (Object.keys(CODECS) as VideoCodec[]).map((codec) => ({
     value: codec,
@@ -77,10 +90,18 @@ export function VideoSettings() {
             />
           </Field>
         </div>
-        <Field label="Encoder">
-          <Segmented value={supported.includes(video.encoderMode) ? video.encoderMode : 'cpu'} onChange={(encoderMode) => setVideo({ encoderMode })} options={encoderOptions} />
+        <Field
+          label="Encoder"
+          value={video.encoderMode === 'auto' ? (resolved === 'cpu' ? 'using the CPU' : `using ${ENCODER_SHORT[resolved]}`) : undefined}
+          hint={
+            hwEncoder
+              ? 'The graphics card is many times faster. Files come out a little bigger for the same quality.'
+              : 'The CPU makes the smallest files. A graphics card is much faster for big batches.'
+          }
+        >
+          <Segmented value={encoderValue} onChange={(encoderMode) => setVideo({ encoderMode })} options={encoderOptions} />
         </Field>
-        <Field label="Speed" hint={hwEncoder ? 'GPU encoders are fast at every setting; slower gives slightly better quality.' : 'Slower presets squeeze harder at the same quality.'}>
+        <Field label="Speed" hint={hwEncoder ? 'The graphics card is fast at every setting; slower gives slightly better quality.' : 'Slower presets squeeze harder at the same quality.'}>
           <Segmented
             value={video.preset}
             onChange={(preset) => setVideo({ preset })}
@@ -145,7 +166,7 @@ export function VideoSettings() {
         {video.rateControl !== 'crf' && (
           <Toggle
             label="Two-pass encoding"
-            hint={twoPassPossible ? 'Analyses the video first so the bitrate goes where it is needed.' : 'GPU and SVT-AV1 encoders use single-pass VBR here.'}
+            hint={twoPassPossible ? 'Analyses the video first so the bitrate goes where it is needed.' : 'Graphics card and AV1 encoders do a single pass here.'}
             checked={video.twoPass && twoPassPossible}
             disabled={!twoPassPossible}
             onChange={(twoPass) => setVideo({ twoPass })}

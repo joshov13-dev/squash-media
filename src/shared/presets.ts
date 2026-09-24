@@ -1,4 +1,4 @@
-import type { ImageJobConfig, OutputSettings, VideoJobConfig } from './types'
+import type { AppPreferences, ImageJobConfig, OutputSettings, VideoJobConfig } from './types'
 
 export const MB = 1024 * 1024
 export const KB = 1024
@@ -22,7 +22,7 @@ export const DEFAULT_IMAGE_CONFIG: ImageJobConfig = {
 export const DEFAULT_VIDEO_CONFIG: VideoJobConfig = {
   container: 'mp4',
   codec: 'h264',
-  encoderMode: 'cpu',
+  encoderMode: 'auto',
   rateControl: 'crf',
   crf: 22,
   preset: 'medium',
@@ -34,6 +34,18 @@ export const DEFAULT_VIDEO_CONFIG: VideoJobConfig = {
   downmixStereo: false,
   scale: 'original',
   fpsLimit: 0,
+}
+
+export const DEFAULT_PREFERENCES: AppPreferences = {
+  videosAtOnce: 1,
+  photosAtOnce: 0,
+  gpuDecoding: true,
+  lowPriority: false,
+  skipCompressedNames: true,
+  skipExisting: false,
+  notifyWhenDone: true,
+  keepAwake: true,
+  confirmQuit: true,
 }
 
 export const DEFAULT_OUTPUT: OutputSettings = {
@@ -100,6 +112,18 @@ export const IMAGE_PRESETS: Preset<ImageJobConfig>[] = [
   },
 ].map((p) => ({ ...p, builtIn: true }))
 
+/** One-click goals for the Quick tab. Each sets both photo and video settings. */
+export interface Goal {
+  id: string
+  name: string
+  description: string
+  image: ImageJobConfig
+  /** The encoder choice is left as the user set it. */
+  video: VideoJobConfig
+  imagePresetId?: string
+  videoPresetId?: string
+}
+
 export const VIDEO_PRESETS: Preset<VideoJobConfig>[] = [
   {
     id: 'vid-standard',
@@ -150,3 +174,58 @@ export const VIDEO_PRESETS: Preset<VideoJobConfig>[] = [
     config: vid({ rateControl: 'targetSize', targetMaxSizeBytes: 20 * MB, scale: '720p', fpsLimit: 30, audioBitrateKbps: 96, downmixStereo: true }),
   },
 ].map((p) => ({ ...p, builtIn: true }))
+
+const fit = (px: number): ImageJobConfig['resize'] => ({ ...DEFAULT_IMAGE_CONFIG.resize, mode: 'fit', maxWidth: px, maxHeight: px })
+
+export const GOALS: Goal[] = [
+  {
+    id: 'goal-smaller',
+    name: 'Smaller, same look',
+    description: 'Keeps each file’s format and size. Most files shrink by half or more and look the same.',
+    image: img({}),
+    video: vid({}),
+    imagePresetId: 'img-balanced',
+    videoPresetId: 'vid-standard',
+  },
+  {
+    id: 'goal-share',
+    name: 'Share online',
+    description: 'WebP photos up to 2560 px and 1080p videos that play on any phone or browser.',
+    image: img({ format: 'webp', quality: 78, resize: fit(2560) }),
+    video: vid({ scale: '1080p', fpsLimit: 30, crf: 23, audioBitrateKbps: 128 }),
+    imagePresetId: 'img-web-webp',
+  },
+  {
+    id: 'goal-smallest',
+    name: 'As small as possible',
+    description: 'AVIF photos and H.265 video. The smallest files that still look good, but slower to make.',
+    image: img({ format: 'avif', quality: 55 }),
+    video: vid({ codec: 'hevc', crf: 28, scale: '1080p', audioBitrateKbps: 96 }),
+    imagePresetId: 'img-avif-max',
+  },
+  {
+    id: 'goal-discord',
+    name: 'Discord (under 10 MB)',
+    description: 'Every photo and video fits Discord’s free 10 MB upload limit.',
+    image: img({ mode: 'targetSize', targetMaxSizeBytes: 8 * MB }),
+    video: vid({ rateControl: 'targetSize', targetMaxSizeBytes: 10 * MB, scale: '720p', fpsLimit: 30, audioBitrateKbps: 96 }),
+    videoPresetId: 'vid-discord-10',
+  },
+  {
+    id: 'goal-email',
+    name: 'Email (under 20 MB)',
+    description: 'Photos under 2 MB and videos under 20 MB, small enough to attach to an email.',
+    image: img({ mode: 'targetSize', targetMaxSizeBytes: 2 * MB }),
+    video: vid({ rateControl: 'targetSize', targetMaxSizeBytes: 20 * MB, scale: '720p', fpsLimit: 30, audioBitrateKbps: 96, downmixStereo: true }),
+    imagePresetId: 'img-under-2mb',
+    videoPresetId: 'vid-email-20',
+  },
+  {
+    id: 'goal-quality',
+    name: 'Best quality',
+    description: 'Photos keep every pixel and videos stay close to the original. Saves less space.',
+    image: img({ mode: 'lossless' }),
+    video: vid({ codec: 'hevc', crf: 20, preset: 'slow', audioCodec: 'copy' }),
+    imagePresetId: 'img-lossless',
+  },
+]

@@ -1,6 +1,8 @@
 import type {
   AudioMode,
+  EncoderChoice,
   EncoderMode,
+  HardwareEncoderMode,
   ImageOutputFormat,
   ImageSourceFormat,
   VideoCodec,
@@ -82,6 +84,20 @@ export const CODECS: Record<VideoCodec, CodecSpec> = {
     sweetSpot: [24, 40],
     containers: ['webm', 'mkv', 'mp4'],
   },
+}
+
+/** Order "auto" tries graphics card encoders in. */
+export const GPU_ENCODER_ORDER: HardwareEncoderMode[] = ['nvenc', 'qsv', 'amf']
+
+/**
+ * The encoder a choice resolves to on this PC. "auto" takes the first
+ * graphics card encoder that passed the start-up test for the codec.
+ */
+export function pickEncoderMode(choice: EncoderChoice, codec: VideoCodec, supported: EncoderMode[]): EncoderMode {
+  if (choice === 'auto') {
+    return GPU_ENCODER_ORDER.find((m) => supported.includes(m) && ENCODER_NAMES[codec][m] !== null) ?? 'cpu'
+  }
+  return choice === 'cpu' || (supported.includes(choice) && ENCODER_NAMES[codec][choice] !== null) ? choice : 'cpu'
 }
 
 export const ENCODER_LABELS: Record<EncoderMode, string> = {

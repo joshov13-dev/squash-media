@@ -7,6 +7,7 @@ import type { QueueStats } from '@shared/types'
 import { getHardwareProfile } from './hardware'
 import { registerIpcHandlers } from './ipc/handlers'
 import { CalibrationStore } from './services/etaCalculator'
+import { getPreferences } from './preferences'
 import { JobQueue } from './services/jobQueue'
 import { SystemMonitor } from './systemMonitor'
 
@@ -50,7 +51,7 @@ function onQueueStats(stats: QueueStats): void {
   if (stats.active) {
     win.setProgressBar(Math.max(0.01, stats.percent / 100))
     // Long encodes should not be cut short by the PC going to sleep.
-    if (sleepBlocker === null) sleepBlocker = powerSaveBlocker.start('prevent-app-suspension')
+    if (sleepBlocker === null && getPreferences().keepAwake) sleepBlocker = powerSaveBlocker.start('prevent-app-suspension')
   } else {
     win.setProgressBar(-1)
     if (sleepBlocker !== null) {
@@ -63,7 +64,7 @@ function onQueueStats(stats: QueueStats): void {
 }
 
 function notifyFinished(win: BrowserWindow, stats: QueueStats): void {
-  if (win.isFocused()) return
+  if (win.isFocused() || !getPreferences().notifyWhenDone) return
   win.flashFrame(true)
   if (!Notification.isSupported()) return
   const saved = Math.max(0, stats.originalBytes - stats.outputBytes)
@@ -109,7 +110,7 @@ function createWindow(): void {
 
   // Closing mid-run throws away the files in progress, so ask first.
   mainWindow.on('close', (e) => {
-    if (!queue?.busy || !mainWindow) return
+    if (!queue?.busy || !mainWindow || !getPreferences().confirmQuit) return
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: 'warning',
       title: 'SquashForge is still working',
@@ -163,6 +164,7 @@ if (!app.requestSingleInstanceLock()) {
     const calibration = new CalibrationStore(join(app.getPath('userData'), 'eta-calibration.json'))
     queue = new JobQueue({
       getHardware: getHardwareProfile,
+      getPreferences,
       calibration,
       emitUpdate: (u) => send(IPC.jobUpdate, u),
       emitStats: onQueueStats,

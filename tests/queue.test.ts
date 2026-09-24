@@ -3,8 +3,8 @@ import { readdir, readFile, stat, utimes } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_IMAGE_CONFIG, DEFAULT_OUTPUT, DEFAULT_VIDEO_CONFIG } from '@shared/presets'
-import type { HardwareProfile, JobRequest, JobUpdate, OutputSettings, QueueStats } from '@shared/types'
+import { DEFAULT_IMAGE_CONFIG, DEFAULT_OUTPUT, DEFAULT_PREFERENCES, DEFAULT_VIDEO_CONFIG } from '@shared/presets'
+import type { AppPreferences, HardwareProfile, JobRequest, JobUpdate, OutputSettings, QueueStats } from '@shared/types'
 import { CalibrationStore } from '../src/main/services/etaCalculator'
 import { readImageInfo } from '../src/main/services/imageProcessor'
 import { JobQueue } from '../src/main/services/jobQueue'
@@ -28,12 +28,14 @@ const hardware: HardwareProfile = {
   ffmpegAvailable: true,
 }
 
-function harness() {
+function harness(prefs: Partial<AppPreferences> = {}) {
+  const preferences = { ...DEFAULT_PREFERENCES, ...prefs }
   const updates: JobUpdate[] = []
   const stats: QueueStats[] = []
   const trashed: string[] = []
   const queue = new JobQueue({
     getHardware: async () => hardware,
+    getPreferences: () => preferences,
     calibration: new CalibrationStore(),
     emitUpdate: (u) => updates.push(u),
     emitStats: (s) => stats.push(s),
@@ -163,6 +165,28 @@ describe('JobQueue', () => {
     expect(done.get('good')!.status).toBe('completed')
   })
 
+  it('skips files whose output already exists when resuming', async () => {
+    const dir = await tempDir()
+    const src = join(dir, 'done.png')
+    await sharp({ create: { width: 120, height: 80, channels: 3, background: '#445566' } }).png({ compressionLevel: 0 }).toFile(src)
+    const earlier = join(dir, 'done_compressed.png')
+    await sharp({ create: { width: 10, height: 10, channels: 3, background: '#000' } }).png().toFile(earlier)
+    const before = await readFile(earlier)
+
+    const { queue, waitFor } = harness({ skipExisting: true })
+    await queue.enqueue([await imageJob(src, 's', DEFAULT_OUTPUT)])
+    const u = (await waitFor(['s'])).get('s')!
+    expect(u.status).toBe('skipped')
+    expect(u.note).toBe('Already compressed earlier')
+    expect(await readFile(earlier)).toEqual(before)
+
+    // With the option off, the earlier output is replaced.
+    const again = harness()
+    await again.queue.enqueue([await imageJob(src, 's2', DEFAULT_OUTPUT)])
+    expect((await again.waitFor(['s2'])).get('s2')!.status).toBe('completed')
+    expect(await readFile(earlier)).not.toEqual(before)
+  })
+
   it('keeps videos that are already under the target size', async () => {
     const dir = await tempDir()
     const src = join(dir, 'small.mp4')
@@ -182,6 +206,30 @@ describe('JobQueue', () => {
     const u = (await waitFor(['small'])).get('small')!
     expect(u.status).toBe('skipped')
     expect(u.note).toBe('Already under the target size')
+  })
+
+  it.skipIf(!ffmpegAvailable)('runs several videos at once when asked', async () => {
+    const dir = await tempDir()
+    const a = join(dir, 'a.mp4')
+    const b = join(dir, 'b.mp4')
+    await makeTestVideo(a, { seconds: 3 })
+    await makeTestVideo(b, { seconds: 3 })
+    const job = async (path: string, id: string): Promise<JobRequest> => ({
+      id,
+      filePath: path,
+      type: 'video',
+      sizeBytes: (await stat(path)).size,
+      info: await probeVideo(path),
+      videoConfig: { ...DEFAULT_VIDEO_CONFIG, container: 'mkv', preset: 'medium' },
+      output: DEFAULT_OUTPUT,
+    })
+    const { queue, updates, waitFor } = harness({ videosAtOnce: 2 })
+    await queue.enqueue([await job(a, 'va'), await job(b, 'vb')])
+    await waitFor(['va', 'vb'])
+    // Both were processing before either finished.
+    const firstDone = updates.findIndex((u) => u.status === 'completed')
+    const processingBefore = new Set(updates.slice(0, firstDone).filter((u) => u.status === 'processing').map((u) => u.jobId))
+    expect(processingBefore).toEqual(new Set(['va', 'vb']))
   })
 
   it.skipIf(!ffmpegAvailable)('runs video jobs with live progress and ETA', async () => {

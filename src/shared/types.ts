@@ -9,6 +9,8 @@ export type MediaType = 'image' | 'video'
 export type GpuVendor = 'nvidia' | 'intel' | 'amd' | 'apple' | 'other'
 export type EncoderMode = 'cpu' | 'nvenc' | 'qsv' | 'amf'
 export type HardwareEncoderMode = Exclude<EncoderMode, 'cpu'>
+/** What the user picks. "auto" uses the graphics card when one can encode the codec. */
+export type EncoderChoice = EncoderMode | 'auto'
 export type VideoCodec = 'h264' | 'hevc' | 'av1' | 'vp9'
 
 export interface GpuInfo {
@@ -131,7 +133,7 @@ export type VideoScale = 'original' | '2160p' | '1440p' | '1080p' | '720p' | '48
 export interface VideoJobConfig {
   container: VideoContainer
   codec: VideoCodec
-  encoderMode: EncoderMode
+  encoderMode: EncoderChoice
   rateControl: VideoRateControl
   /** Constant quality value on the codec's own scale (x264/x265 0-51, AV1/VP9 0-63). */
   crf: number
@@ -167,6 +169,27 @@ export interface OutputSettings {
 }
 
 export type WhenDone = 'nothing' | 'sleep' | 'shutdown'
+
+/** App-wide preferences from the Settings window. */
+export interface AppPreferences {
+  /** Videos encoded side by side. Graphics card encoders benefit most. */
+  videosAtOnce: number
+  /** Photos compressed side by side. 0 picks a number from the CPU. */
+  photosAtOnce: number
+  /** Decode on the graphics card too when a graphics card encoder is used. */
+  gpuDecoding: boolean
+  /** Run compression at below-normal priority so the PC stays responsive. */
+  lowPriority: boolean
+  /** Leave out files named like earlier output (e.g. "_compressed") when adding folders. */
+  skipCompressedNames: boolean
+  /** Skip a file when its output already exists, to resume a big batch. */
+  skipExisting: boolean
+  notifyWhenDone: boolean
+  /** Stop the PC sleeping while the queue runs. */
+  keepAwake: boolean
+  /** Ask before quitting while files are being compressed. */
+  confirmQuit: boolean
+}
 
 export interface AppInfo {
   version: string
