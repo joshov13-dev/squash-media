@@ -27,11 +27,11 @@ Open the [latest release page](https://github.com/joshov13-dev/squash-media/rele
 
 | Your computer | Download |
 | --- | --- |
-| Windows | `SquashForge-Setup-0.3.0-x64.exe` (the version number may be higher) |
-| Mac with an Apple chip (M1, M2, M3, M4...) | `SquashForge-0.3.0-mac-arm64.dmg` |
-| Older Mac with an Intel chip | `SquashForge-0.3.0-mac-x64.dmg` |
-| Linux (Ubuntu, Mint, Debian) | `SquashForge-0.3.0-amd64.deb` |
-| Other Linux | `SquashForge-0.3.0-x86_64.AppImage` |
+| Windows | `SquashForge-Setup-0.4.0-x64.exe` (the version number may be higher) |
+| Mac with an Apple chip (M1, M2, M3, M4...) | `SquashForge-0.4.0-mac-arm64.dmg` |
+| Older Mac with an Intel chip | `SquashForge-0.4.0-mac-x64.dmg` |
+| Linux (Ubuntu, Mint, Debian) | `SquashForge-0.4.0-amd64.deb` |
+| Other Linux | `SquashForge-0.4.0-x86_64.AppImage` |
 
 Not sure which Mac you have? Click the Apple menu at the top left and choose **About This Mac**. If it says **Chip: Apple M...**, take the arm64 one. If it says **Processor: Intel**, take x64.
 
@@ -48,7 +48,7 @@ Not sure which Mac you have? Click the Apple menu at the top left and choose **A
 3. The installer asks a couple of questions. The answers it already has are fine, so keep clicking **Next**, then **Install**, then **Finish**.
 4. SquashForge opens. Next time, click the Start button and type `SquashForge`, or use the shortcut on your desktop.
 
-**Would rather not install anything?** Download `SquashForge-Portable-0.3.0-x64.exe` instead and double-click it. You'll get the same blue box the first time: click **More info**, then **Run anyway**. It runs straight away without installing, but it opens a few seconds slower each time, doesn't update itself, and can't add the right-click menu in File Explorer or connect to AI apps.
+**Would rather not install anything?** Download `SquashForge-Portable-0.4.0-x64.exe` instead and double-click it. You'll get the same blue box the first time: click **More info**, then **Run anyway**. It runs straight away without installing, but it opens a few seconds slower each time, doesn't update itself, and can't add the right-click menu in File Explorer or connect to AI apps.
 
 **Removing it:** open **Settings**, then **Apps**, find **SquashForge** and click **Uninstall**. Your photos and videos are not touched.
 
@@ -67,7 +67,7 @@ Not sure which Mac you have? Click the Apple menu at the top left and choose **A
 
 ### Linux
 
-- **The .deb file** (Ubuntu, Linux Mint, Debian, Pop!_OS): double-click it and click **Install**, or run `sudo apt install ./SquashForge-0.3.0-amd64.deb` in the folder you downloaded it to. SquashForge then appears in your apps menu.
+- **The .deb file** (Ubuntu, Linux Mint, Debian, Pop!_OS): double-click it and click **Install**, or run `sudo apt install ./SquashForge-0.4.0-amd64.deb` in the folder you downloaded it to. SquashForge then appears in your apps menu.
 - **The AppImage** (any other Linux): right-click it, open **Properties**, tick **Allow executing file as program**, then double-click it. Or in a terminal: `chmod +x SquashForge-*.AppImage && ./SquashForge-*.AppImage`. The AppImage can't connect to AI apps, because it moves each time it runs; use the .deb for that.
 
 ### Updates
@@ -501,7 +501,7 @@ ELECTRON_RUN_AS_NODE=1 npx electron out/main/cli.js mcp     # MCP over stdio
 ### Making a release
 
 1. Change `version` in `package.json` (and `package-lock.json`, with `npm version <x.y.z> --no-git-tag-version`) and merge it into `main`.
-2. Create a release on GitHub with a new tag such as `v0.3.0` on `main`, or push the tag yourself.
+2. Create a release on GitHub with a new tag such as `v0.4.0` on `main`, or push the tag yourself.
 3. The workflow builds every platform and attaches the installers to the release, with `latest.yml` and `latest-linux.yml`. Installed copies look at those files to update themselves, so leave them in place.
 
 ### How the code is laid out
