@@ -58,7 +58,7 @@ export function SettingsDialog() {
           </>
         }
       >
-        <nav aria-label="Settings sections" className="sticky top-0 w-44 shrink-0 space-y-0.5 self-start pb-6">
+        <nav aria-label="Settings sections" className="sticky top-0 w-48 shrink-0 space-y-0.5 self-start pb-6">
           {SECTIONS.map((s) => (
             <button
               key={s.id}

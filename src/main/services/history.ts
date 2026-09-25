@@ -1,7 +1,7 @@
 // A record of every file SquashForge has written, shared by the app, the
 // command line and the AI server, so any run can be undone later.
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
 import type { HistoryEntry, HistoryRun, RunOrigin, UndoResult } from '@shared/types'
 import { findInTrash, putBack, type TrashHit, type TrashedOriginal } from '../trash'
@@ -152,10 +152,4 @@ export class HistoryStore {
     this.saving = this.saving.then(write, write)
     await this.saving
   }
-}
-
-/** Size and modified time of a file, or null when it is gone. */
-export async function fileFacts(path: string): Promise<{ size: number; mtimeMs: number } | null> {
-  const s = await stat(path).catch(() => null)
-  return s ? { size: s.size, mtimeMs: s.mtimeMs } : null
 }
