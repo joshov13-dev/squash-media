@@ -13,12 +13,13 @@ import { getBinaryPaths } from './binaries'
 import { runProcess } from './utils/process'
 
 const CODECS: VideoCodec[] = ['h264', 'hevc', 'av1', 'vp9']
-const HW_MODES: HardwareEncoderMode[] = ['nvenc', 'qsv', 'amf']
+const HW_MODES: HardwareEncoderMode[] = ['nvenc', 'qsv', 'amf', 'videotoolbox']
 
 const VENDOR_FOR_MODE: Record<HardwareEncoderMode, GpuVendor> = {
   nvenc: 'nvidia',
   qsv: 'intel',
   amf: 'amd',
+  videotoolbox: 'apple',
 }
 
 export function detectVendor(vendor: string, model: string): GpuVendor {
@@ -144,8 +145,9 @@ export async function detectHardware(): Promise<HardwareProfile> {
   // Only test GPU encoders whose vendor is present. If GPU detection failed
   // entirely, test everything that was compiled in.
   const vendors = new Set(gpus.map((g) => g.vendor))
+  // VideoToolbox is part of macOS and works on Intel Macs too.
   const shouldTest = (mode: HardwareEncoderMode): boolean =>
-    gpus.length === 0 || vendors.has(VENDOR_FOR_MODE[mode])
+    mode === 'videotoolbox' ? process.platform === 'darwin' : gpus.length === 0 || vendors.has(VENDOR_FOR_MODE[mode])
 
   const encoderSupport: Record<VideoCodec, EncoderMode[]> = { h264: [], hevc: [], av1: [], vp9: [] }
   const tests: Array<Promise<void>> = []
@@ -164,7 +166,7 @@ export async function detectHardware(): Promise<HardwareProfile> {
   }
   await Promise.all(tests)
 
-  const order: EncoderMode[] = ['cpu', 'nvenc', 'qsv', 'amf']
+  const order: EncoderMode[] = ['cpu', 'nvenc', 'qsv', 'amf', 'videotoolbox']
   for (const codec of CODECS) encoderSupport[codec].sort((a, b) => order.indexOf(a) - order.indexOf(b))
 
   const availableGpuEncoders = HW_MODES.filter((mode) => CODECS.some((c) => encoderSupport[c].includes(mode)))

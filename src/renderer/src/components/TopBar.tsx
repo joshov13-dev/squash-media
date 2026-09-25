@@ -1,11 +1,12 @@
-import { FolderPlus, Play, Plus, Square } from 'lucide-react'
+import { FolderPlus, Play, Plus, RotateCw, Square } from 'lucide-react'
 import { api } from '@renderer/lib/api'
 import { cn } from '@renderer/lib/cn'
 import { ACTIVE, useQueue } from '@renderer/store/queueStore'
 import { useSystem } from '@renderer/store/systemStore'
 import { HelpPopover } from './HelpPopover'
+import { HistoryDialog } from './HistoryDialog'
 import { Logo } from './Logo'
-import { SettingsDialog } from './SettingsDialog'
+import { SettingsDialog } from './settings-window/SettingsDialog'
 import { Button, Tip } from './ui/controls'
 
 export function TopBar() {
@@ -14,6 +15,7 @@ export function TopBar() {
   const stopAll = useQueue((s) => s.stopAll)
   const addPaths = useQueue((s) => s.addPaths)
   const active = useSystem((s) => s.stats?.active ?? false)
+  const update = useSystem((s) => s.update)
   const running = active || jobs.some((j) => ACTIVE.includes(j.status))
   const runnable = jobs.filter((j) => j.status === 'pending' || j.status === 'failed' || j.status === 'cancelled').length
   const isMac = api.platform === 'darwin'
@@ -42,6 +44,16 @@ export function TopBar() {
         Add folder
       </Button>
       <div className="flex-1" />
+      {update?.state === 'ready' && !running && (
+        <Tip label={`Version ${update.version} has downloaded. Restart SquashForge to start using it.`}>
+          <span className="no-drag">
+            <Button variant="plain" onClick={() => void api.installUpdate()} className="text-ember hover:text-ember">
+              <RotateCw size={14} /> Restart to update
+            </Button>
+          </span>
+        </Tip>
+      )}
+      <HistoryDialog />
       <SettingsDialog />
       <HelpPopover />
       {running ? (

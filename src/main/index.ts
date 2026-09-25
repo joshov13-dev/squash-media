@@ -3,13 +3,17 @@ import { existsSync } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 import { formatBytes } from '@shared/format'
 import { IPC } from '@shared/ipc'
-import type { QueueStats } from '@shared/types'
+import type { AppPreferences, QueueStats } from '@shared/types'
 import { getHardwareProfile } from './hardware'
 import { registerIpcHandlers } from './ipc/handlers'
 import { CalibrationStore } from './services/etaCalculator'
-import { getPreferences } from './preferences'
+import { userDataDir, userDataFile } from './appPaths'
+import { getPreferences, onPreferencesChanged, usePreferencesFile } from './preferences'
+import { HistoryStore } from './services/history'
 import { JobQueue } from './services/jobQueue'
 import { SystemMonitor } from './systemMonitor'
+import { Updater } from './updater'
+import { FolderWatcher } from './watcher'
 
 let mainWindow: BrowserWindow | null = null
 let monitor: SystemMonitor | null = null
@@ -105,7 +109,9 @@ function createWindow(): void {
     },
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
+  // Started at sign-in: sit in the taskbar so watched folders keep working.
+  const hidden = process.argv.includes('--hidden')
+  mainWindow.on('ready-to-show', () => (hidden ? mainWindow?.minimize() : mainWindow?.show()))
   mainWindow.on('focus', () => mainWindow?.flashFrame(false))
 
   // Closing mid-run throws away the files in progress, so ask first.
@@ -144,8 +150,9 @@ function createWindow(): void {
   }
 }
 
-// A separate settings folder, for testing or running side by side.
-if (process.env.SQUASHFORGE_USER_DATA) app.setPath('userData', process.env.SQUASHFORGE_USER_DATA)
+// One settings folder for the app, the command line and the AI server.
+// SQUASHFORGE_USER_DATA picks a separate one, for testing or running side by side.
+app.setPath('userData', userDataDir())
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -161,16 +168,35 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     app.setAppUserModelId('com.squashforge.app')
 
-    const calibration = new CalibrationStore(join(app.getPath('userData'), 'eta-calibration.json'))
+    usePreferencesFile(userDataFile('preferences.json'))
+    const watcher = new FolderWatcher({
+      onFound: (watchId, paths) => send(IPC.watchFound, { watchId, paths }),
+      onStatus: (status) => send(IPC.watchStatus, status),
+    })
+    watcher.update(getPreferences().watchFolders)
+    const updater = new Updater((state) => send(IPC.updateState, state))
+    const followPreferences = (prefs: AppPreferences): void => {
+      watcher.update(prefs.watchFolders)
+      if (prefs.checkForUpdates) updater.startAutomatic()
+      else updater.stopAutomatic()
+    }
+    followPreferences(getPreferences())
+    onPreferencesChanged(followPreferences)
+    const calibration = new CalibrationStore(userDataFile('eta-calibration.json'))
+    const history = new HistoryStore(userDataFile('history.json'), { trash: (p) => shell.trashItem(p) })
     queue = new JobQueue({
       getHardware: getHardwareProfile,
       getPreferences,
       calibration,
-      emitUpdate: (u) => send(IPC.jobUpdate, u),
+      emitUpdate: (u) => {
+        if (u.outputPath) watcher.ignore(u.outputPath)
+        send(IPC.jobUpdate, u)
+      },
       emitStats: onQueueStats,
       trash: (p) => shell.trashItem(p),
+      history,
     })
-    registerIpcHandlers(queue)
+    registerIpcHandlers({ queue, history, watcher, updater })
     ipcMain.handle(IPC.takeOpenPaths, () => {
       rendererReady = true
       return pendingPaths.splice(0)
@@ -184,6 +210,8 @@ if (!app.requestSingleInstanceLock()) {
     })
 
     app.on('before-quit', () => {
+      watcher.stop()
+      void history.flush()
       queue?.cancelAll()
       monitor?.stop()
     })

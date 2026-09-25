@@ -20,6 +20,8 @@ export const IMAGE_EXTENSIONS: Record<string, ImageSourceFormat> = {
   '.tif': 'tiff',
   '.tiff': 'tiff',
   '.bmp': 'bmp',
+  '.heic': 'heic',
+  '.heif': 'heic',
 }
 
 export const VIDEO_EXTENSIONS = new Set([
@@ -87,7 +89,7 @@ export const CODECS: Record<VideoCodec, CodecSpec> = {
 }
 
 /** Order "auto" tries graphics card encoders in. */
-export const GPU_ENCODER_ORDER: HardwareEncoderMode[] = ['nvenc', 'qsv', 'amf']
+export const GPU_ENCODER_ORDER: HardwareEncoderMode[] = ['nvenc', 'qsv', 'amf', 'videotoolbox']
 
 /**
  * The encoder a choice resolves to on this PC. "auto" takes the first
@@ -105,14 +107,15 @@ export const ENCODER_LABELS: Record<EncoderMode, string> = {
   nvenc: 'NVIDIA NVENC',
   qsv: 'Intel Quick Sync',
   amf: 'AMD AMF',
+  videotoolbox: 'Apple VideoToolbox',
 }
 
 /** FFmpeg encoder name for each codec and encoder family. `null` means not offered. */
 export const ENCODER_NAMES: Record<VideoCodec, Record<EncoderMode, string | null>> = {
-  h264: { cpu: 'libx264', nvenc: 'h264_nvenc', qsv: 'h264_qsv', amf: 'h264_amf' },
-  hevc: { cpu: 'libx265', nvenc: 'hevc_nvenc', qsv: 'hevc_qsv', amf: 'hevc_amf' },
-  av1: { cpu: 'libsvtav1', nvenc: 'av1_nvenc', qsv: 'av1_qsv', amf: 'av1_amf' },
-  vp9: { cpu: 'libvpx-vp9', nvenc: null, qsv: 'vp9_qsv', amf: null },
+  h264: { cpu: 'libx264', nvenc: 'h264_nvenc', qsv: 'h264_qsv', amf: 'h264_amf', videotoolbox: 'h264_videotoolbox' },
+  hevc: { cpu: 'libx265', nvenc: 'hevc_nvenc', qsv: 'hevc_qsv', amf: 'hevc_amf', videotoolbox: 'hevc_videotoolbox' },
+  av1: { cpu: 'libsvtav1', nvenc: 'av1_nvenc', qsv: 'av1_qsv', amf: 'av1_amf', videotoolbox: null },
+  vp9: { cpu: 'libvpx-vp9', nvenc: null, qsv: 'vp9_qsv', amf: null, videotoolbox: null },
 }
 
 export const SCALE_HEIGHTS: Record<Exclude<VideoScale, 'original'>, number> = {
@@ -173,6 +176,8 @@ export function resolveImageFormat(
 ): ResolvedImageFormat {
   if (requested !== 'original') return requested
   if (source === 'bmp') return 'png'
+  // Nothing here can write HEVC stills, and JPEG opens everywhere.
+  if (source === 'heic') return 'jpeg'
   return source
 }
 

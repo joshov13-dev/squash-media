@@ -1,4 +1,4 @@
-import { FolderOpen, X } from 'lucide-react'
+import { ClipboardCopy, FolderOpen, X } from 'lucide-react'
 import { formatBytes, formatEta, savingsPercent } from '@shared/format'
 import { api } from '@renderer/lib/api'
 import { useQueue } from '@renderer/store/queueStore'
@@ -12,6 +12,7 @@ export function FinishBanner() {
   const dismiss = useSystem((s) => s.dismissFinished)
   const output = useSettings((s) => s.output)
   const firstOutput = useQueue((s) => s.jobs.find((j) => j.outputPath)?.outputPath)
+  const copyReport = useQueue((s) => s.copyReport)
   if (!finished) return null
 
   const saved = Math.max(0, finished.originalBytes - finished.outputBytes)
@@ -37,17 +38,26 @@ export function FinishBanner() {
               </>
             )}
           </p>
-          {finished.failed > 0 && <p className="mt-1 text-[12px] text-ink-3">Files marked in red say what went wrong.</p>}
+          {finished.failed > 0 && (
+            <p className="mt-1 text-[12px] text-ink-3">Files marked in red say what went wrong. If it looks like a bug, copy the details and report it.</p>
+          )}
         </div>
         <button type="button" aria-label="Close" onClick={dismiss} className="-mt-0.5 -mr-0.5 rounded p-1 text-ink-3 hover:bg-hover hover:text-ink">
           <X size={14} />
         </button>
       </div>
-      {(firstOutput || (output.mode === 'folder' && output.folder)) && (
-        <Button size="sm" variant="raised" className="mt-2.5" onClick={open}>
-          <FolderOpen size={13} /> Open the folder
-        </Button>
-      )}
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {(firstOutput || (output.mode === 'folder' && output.folder)) && (
+          <Button size="sm" variant="raised" onClick={open}>
+            <FolderOpen size={13} /> Open the folder
+          </Button>
+        )}
+        {finished.failed > 0 && (
+          <Button size="sm" variant="raised" onClick={() => void copyReport()}>
+            <ClipboardCopy size={13} /> Copy details
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

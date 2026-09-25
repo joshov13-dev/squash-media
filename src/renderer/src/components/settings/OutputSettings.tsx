@@ -1,14 +1,15 @@
-import { FolderOpen } from 'lucide-react'
+import { FolderOpen, RotateCcw } from 'lucide-react'
+import { useRef } from 'react'
+import { cleanTemplate, DEFAULT_NAME_TEMPLATE, exampleName, NAME_TOKENS, templateChangesName } from '@shared/naming'
 import { api } from '@renderer/lib/api'
 import { useSettings } from '@renderer/store/settingsStore'
-import { Button, Field, IconButton, Section, Segmented, Toggle } from '../ui/controls'
-import { RotateCcw } from 'lucide-react'
+import { binName } from '../HelpPopover'
+import { Button, Field, IconButton, Section, Segmented, Tip, Toggle } from '../ui/controls'
 
 export function OutputSettings() {
   const output = useSettings((s) => s.output)
   const setOutput = useSettings((s) => s.setOutput)
   const resetOutput = useSettings((s) => s.resetOutput)
-  const suffix = output.suffix.trim() || '_compressed'
 
   const chooseFolder = async (): Promise<void> => {
     const folder = await api.chooseOutputFolder()
@@ -37,17 +38,7 @@ export function OutputSettings() {
             { value: 'overwrite', label: 'Replace' },
           ]}
         />
-        {output.mode === 'suffix' && (
-          <Field label="Name ending" hint={<span className="num">holiday.jpg becomes holiday{suffix}.jpg</span>}>
-            <input
-              value={output.suffix}
-              onChange={(e) => setOutput({ suffix: e.target.value.replace(/[\\/:*?"<>|]/g, '') })}
-              className="h-8 w-full rounded-md bg-ground px-2.5 outline-none focus:bg-hover"
-              spellCheck={false}
-              aria-label="File name suffix"
-            />
-          </Field>
-        )}
+        {output.mode === 'suffix' && <NameTemplate />}
         {output.mode === 'folder' && (
           <>
             <Field label="Destination" hint="Files keep their names. If two files would end up with the same name, the second gets (2) added.">
@@ -61,6 +52,13 @@ export function OutputSettings() {
               </div>
             </Field>
             <Toggle
+              label="Rename the files too"
+              hint="Off keeps the original names. On uses the name pattern below."
+              checked={output.renameInFolder}
+              onChange={(renameInFolder) => setOutput({ renameInFolder })}
+            />
+            {output.renameInFolder && <NameTemplate />}
+            <Toggle
               label="Keep subfolders"
               hint="When you add a whole folder, its subfolders are recreated inside the destination."
               checked={output.keepFolderStructure}
@@ -70,7 +68,7 @@ export function OutputSettings() {
         )}
         {output.mode === 'overwrite' && (
           <p className="text-[12px] leading-relaxed text-ink-3">
-            The compressed file takes the original’s place. Originals are moved to the Recycle Bin, so you can still get them back.
+            The compressed file takes the original’s place. Originals are moved to the {binName()}, and History can put them back.
           </p>
         )}
       </Section>
@@ -90,5 +88,60 @@ export function OutputSettings() {
         />
       </Section>
     </div>
+  )
+}
+
+/** Pattern for the new file names, with buttons that insert each token. */
+function NameTemplate() {
+  const template = useSettings((s) => s.output.nameTemplate)
+  const setOutput = useSettings((s) => s.setOutput)
+  const input = useRef<HTMLInputElement>(null)
+  const sameAsOriginal = !templateChangesName(template)
+
+  const insert = (token: string): void => {
+    const el = input.current
+    const start = el?.selectionStart ?? template.length
+    const end = el?.selectionEnd ?? template.length
+    setOutput({ nameTemplate: template.slice(0, start) + token + template.slice(end) })
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(start + token.length, start + token.length)
+    })
+  }
+
+  return (
+    <Field
+      label="File name"
+      hint={
+        sameAsOriginal ? (
+          <span className="text-ember">Names stay the same, so "_compressed" is added to avoid replacing the original.</span>
+        ) : (
+          <span className="num">holiday.jpg becomes {exampleName(template)}</span>
+        )
+      }
+    >
+      <input
+        ref={input}
+        value={template}
+        onChange={(e) => setOutput({ nameTemplate: cleanTemplate(e.target.value) })}
+        onBlur={() => !template.trim() && setOutput({ nameTemplate: DEFAULT_NAME_TEMPLATE })}
+        className="num h-8 w-full rounded-md bg-ground px-2.5 outline-none focus:bg-hover"
+        spellCheck={false}
+        aria-label="File name pattern"
+      />
+      <div className="flex flex-wrap gap-1">
+        {NAME_TOKENS.map((t) => (
+          <Tip key={t.token} label={t.label}>
+            <button
+              type="button"
+              onClick={() => insert(t.token)}
+              className="num h-6 rounded px-1.5 text-[12px] text-ink-3 hover:bg-hover hover:text-ink"
+            >
+              {t.token}
+            </button>
+          </Tip>
+        ))}
+      </div>
+    </Field>
   )
 }

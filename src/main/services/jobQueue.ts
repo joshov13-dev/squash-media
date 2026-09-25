@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { copyFile, mkdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import type { Stats } from 'node:fs'
@@ -7,6 +8,7 @@ import { formatEta } from '@shared/format'
 import type {
   AppPreferences,
   HardwareProfile,
+  HistoryEntry,
   ImageInfo,
   JobRequest,
   JobStatus,
@@ -14,6 +16,7 @@ import type {
   OutputSettings,
   ProgressStatus,
   QueueStats,
+  RunOrigin,
   VideoInfo,
 } from '@shared/types'
 import { AbortError } from '../utils/process'
@@ -35,6 +38,7 @@ import {
   tempPathFor,
   uniquePath,
   videoOutputExtension,
+  type NamingInput,
   type OutputPlan,
 } from './outputPaths'
 import { encodeVideo, planWorkload, resolveEncoder, trimWindow } from './videoProcessor'
@@ -58,6 +62,7 @@ interface QueueItem {
   outputBytes?: number
   /** Output path reserved for this job in the current run. */
   claimedPath?: string
+  sourceMtimeMs?: number
 }
 
 export interface JobQueueDeps {
@@ -68,6 +73,8 @@ export interface JobQueueDeps {
   emitStats: (stats: QueueStats) => void
   /** Move a file to the recycle bin. */
   trash: (path: string) => Promise<void>
+  /** Keeps a record of each file written, for undo. */
+  history?: { record: (runId: string, origin: RunOrigin, startedAt: number, entry: HistoryEntry) => Promise<void> | void }
 }
 
 const FINISHED: JobStatus[] = ['completed', 'skipped', 'failed', 'cancelled']
@@ -78,6 +85,7 @@ export class JobQueue {
   private runningImages = 0
   private runningVideos = 0
   private runStartedAt = 0
+  private runId = randomUUID().slice(0, 8)
   private ticker: NodeJS.Timeout | null = null
   /** Output paths handed out in this run, so two jobs never share one. */
   private claimed = new Set<string>()
@@ -91,6 +99,7 @@ export class JobQueue {
       this.items = []
       this.claimed.clear()
       this.runStartedAt = Date.now()
+      this.runId = randomUUID().slice(0, 8)
     }
     for (const req of requests) {
       const existing = this.items.find((i) => i.req.id === req.id)
@@ -128,6 +137,20 @@ export class JobQueue {
 
   cancelAll(): void {
     for (const item of this.items) this.cancel(item.req.id)
+  }
+
+  /**
+   * Predicted seconds for each request, and for the whole lot with photos and
+   * videos running side by side. Used for dry runs.
+   */
+  async estimate(requests: JobRequest[]): Promise<{ perFile: number[]; total: number }> {
+    this.hardware ??= await this.deps.getHardware()
+    const perFile = requests.map((r) => this.predict(r))
+    let images = 0
+    let videos = 0
+    requests.forEach((r, i) => (r.type === 'image' ? (images += perFile[i]) : (videos += perFile[i])))
+    const total = Math.max(images / imageLaneSpeedup(this.imageLanes()), videos / imageLaneSpeedup(this.deps.getPreferences().videosAtOnce))
+    return { perFile, total }
   }
 
   get busy(): boolean {
@@ -209,8 +232,9 @@ export class JobQueue {
     const config = req.imageConfig!
     const info = req.info as ImageInfo
     const sourceStat = await stat(req.filePath)
+    item.sourceMtimeMs = sourceStat.mtimeMs
     const format = resolveImageFormat(config.format, info.format)
-    const natural = planOutputPath(req.filePath, imageOutputExtension(req.filePath, info.format, format), req.output, req.relativeDir)
+    const natural = planOutputPath(req.filePath, imageOutputExtension(req.filePath, info.format, format), req.output, req.relativeDir, this.naming(item, sourceStat))
     if (await this.skipIfDone(item, natural)) return
     const plan = this.claim(item, natural)
     const started = Date.now()
@@ -231,8 +255,8 @@ export class JobQueue {
     const temp = tempPathFor(plan.finalPath, req.id)
     await mkdir(dirname(plan.finalPath), { recursive: true })
     await writeFile(temp, result.data)
-    const note = await this.commit(temp, plan, req.filePath, sourceStat, req.output)
-    this.complete(item, result.data.length, plan.finalPath, [result.note, note].filter(Boolean).join(' · ') || undefined)
+    const { note, replaced } = await this.commit(temp, plan, req.filePath, sourceStat, req.output)
+    this.complete(item, result.data.length, plan.finalPath, [result.note, note].filter(Boolean).join(' · ') || undefined, replaced)
   }
 
   private async runVideo(item: QueueItem): Promise<void> {
@@ -240,6 +264,7 @@ export class JobQueue {
     let config = req.videoConfig!
     const info = req.info as VideoInfo
     const sourceStat = await stat(req.filePath)
+    item.sourceMtimeMs = sourceStat.mtimeMs
     // A trimmed clip is a new file the user asked for, so never swap it for the original.
     const trimmed = trimWindow(info, config).trimmed
     if (config.rateControl === 'targetSize' && req.sizeBytes <= config.targetMaxSizeBytes && !trimmed) {
@@ -250,7 +275,7 @@ export class JobQueue {
       }
       config = { ...config, targetMaxSizeBytes: req.sizeBytes }
     }
-    const natural = planOutputPath(req.filePath, videoOutputExtension(config.container), req.output, req.relativeDir)
+    const natural = planOutputPath(req.filePath, videoOutputExtension(config.container), req.output, req.relativeDir, this.naming(item, sourceStat))
     if (await this.skipIfDone(item, natural)) return
     const plan = this.claim(item, natural)
     const prefs = this.deps.getPreferences()
@@ -291,12 +316,16 @@ export class JobQueue {
         await this.keepOriginal(item, sourceStat, 'Original kept: compressed file was larger')
         return
       }
-      const note = await this.commit(temp, plan, req.filePath, sourceStat, req.output)
-      this.complete(item, result.bytes, plan.finalPath, [...result.notes, note].filter(Boolean).join(' · ') || undefined)
+      const { note, replaced } = await this.commit(temp, plan, req.filePath, sourceStat, req.output)
+      this.complete(item, result.bytes, plan.finalPath, [...result.notes, note].filter(Boolean).join(' · ') || undefined, replaced)
     } catch (e) {
       await rm(temp, { force: true }).catch(() => undefined)
       throw e
     }
+  }
+
+  private naming(item: QueueItem, sourceStat: Stats): NamingInput {
+    return { modified: sourceStat.mtime, index: this.items.indexOf(item) + 1 }
   }
 
   /** "Skip files compressed in an earlier session": the output is already there. */
@@ -332,21 +361,56 @@ export class JobQueue {
     item.claimedPath = undefined
   }
 
-  /** Move the temp file into place. Returns a note if something needs saying. */
-  private async commit(temp: string, plan: OutputPlan, source: string, sourceStat: Stats, output: OutputSettings): Promise<string | undefined> {
+  /**
+   * Move the temp file into place. Returns a note if something needs saying,
+   * and whether the original went to the bin.
+   */
+  private async commit(
+    temp: string,
+    plan: OutputPlan,
+    source: string,
+    sourceStat: Stats,
+    output: OutputSettings,
+  ): Promise<{ note?: string; replaced: boolean }> {
     let note: string | undefined
+    let replaced = false
     if (plan.replacesSource) {
       try {
         await this.deps.trash(source)
+        replaced = true
       } catch {
-        if (!samePath(plan.finalPath, source)) note = 'Original left in place: it could not be moved to the Recycle Bin'
+        // Writing over the original with no copy in the bin could lose it for good.
+        if (samePath(plan.finalPath, source)) {
+          await rm(temp, { force: true }).catch(() => undefined)
+          throw new Error('The original could not be moved to the Recycle Bin, so it was not replaced')
+        }
+        note = 'Original left in place: it could not be moved to the Recycle Bin'
       }
     }
     await rename(temp, plan.finalPath)
     if (output.preserveTimestamps) {
       await utimes(plan.finalPath, sourceStat.atime, sourceStat.mtime).catch(() => undefined)
     }
-    return note
+    return { note, replaced }
+  }
+
+  private record(item: QueueItem, output: string, outputBytes: number, replaced: boolean, copied = false): void {
+    if (!this.deps.history) return
+    const { req } = item
+    const origin = req.origin ?? 'app'
+    const entry: HistoryEntry = {
+      jobId: req.id,
+      type: req.type,
+      source: req.filePath,
+      output,
+      originalBytes: req.sizeBytes,
+      outputBytes,
+      replaced,
+      copied: copied || undefined,
+      sourceMtimeMs: item.sourceMtimeMs ?? 0,
+      finishedAt: Date.now(),
+    }
+    void Promise.resolve(this.deps.history.record(`${this.runId}-${origin}`, origin, this.runStartedAt, entry)).catch(() => undefined)
   }
 
   private async keepOriginal(item: QueueItem, sourceStat: Stats, note?: string): Promise<void> {
@@ -361,6 +425,7 @@ export class JobQueue {
         await copyFile(req.filePath, dest)
         if (req.output.preserveTimestamps) await utimes(dest, sourceStat.atime, sourceStat.mtime).catch(() => undefined)
         outputPath = dest
+        this.record(item, dest, req.sizeBytes, false, true)
       }
     }
     item.status = 'skipped'
@@ -370,7 +435,8 @@ export class JobQueue {
     this.emit(item, true, { compressedSizeBytes: req.sizeBytes, outputPath, note })
   }
 
-  private complete(item: QueueItem, bytes: number, outputPath: string, note?: string): void {
+  private complete(item: QueueItem, bytes: number, outputPath: string, note: string | undefined, replaced: boolean): void {
+    this.record(item, outputPath, bytes, replaced)
     item.status = 'completed'
     item.percent = 100
     item.remaining = 0

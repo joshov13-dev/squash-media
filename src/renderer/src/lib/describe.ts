@@ -9,6 +9,7 @@ const FORMAT_NAMES: Record<string, string> = {
   avif: 'AVIF',
   tiff: 'TIFF',
   bmp: 'BMP',
+  heic: 'HEIC',
 }
 
 export const formatName = (f: string): string => FORMAT_NAMES[f] ?? f.toUpperCase()

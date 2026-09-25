@@ -7,7 +7,7 @@ export type MediaType = 'image' | 'video'
 // ---------------------------------------------------------------------------
 
 export type GpuVendor = 'nvidia' | 'intel' | 'amd' | 'apple' | 'other'
-export type EncoderMode = 'cpu' | 'nvenc' | 'qsv' | 'amf'
+export type EncoderMode = 'cpu' | 'nvenc' | 'qsv' | 'amf' | 'videotoolbox'
 export type HardwareEncoderMode = Exclude<EncoderMode, 'cpu'>
 /** What the user picks. "auto" uses the graphics card when one can encode the codec. */
 export type EncoderChoice = EncoderMode | 'auto'
@@ -50,7 +50,7 @@ export interface SystemLoad {
 // Media info
 // ---------------------------------------------------------------------------
 
-export type ImageSourceFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff' | 'bmp'
+export type ImageSourceFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff' | 'bmp' | 'heic'
 
 export interface ImageInfo {
   kind: 'image'
@@ -158,7 +158,10 @@ export type OutputMode = 'suffix' | 'folder' | 'overwrite'
 
 export interface OutputSettings {
   mode: OutputMode
-  suffix: string
+  /** Name for the compressed copy, e.g. "{name}_compressed". See shared/naming. */
+  nameTemplate: string
+  /** In folder mode, rename files with the template too (otherwise names are kept). */
+  renameInFolder: boolean
   folder: string | null
   /** Keep the original when the compressed file would be bigger. */
   keepOriginalIfLarger: boolean
@@ -169,6 +172,23 @@ export interface OutputSettings {
 }
 
 export type WhenDone = 'nothing' | 'sleep' | 'shutdown'
+
+/** A folder whose new photos and videos are compressed as they arrive. */
+export interface WatchFolder {
+  id: string
+  path: string
+  /** Quick tab goal used for new files. */
+  goalId: string
+  /** Where copies go. Null saves them next to the originals. */
+  outputFolder: string | null
+  enabled: boolean
+}
+
+export interface WatchStatus {
+  id: string
+  watching: boolean
+  error?: string
+}
 
 /** App-wide preferences from the Settings window. */
 export interface AppPreferences {
@@ -189,6 +209,53 @@ export interface AppPreferences {
   keepAwake: boolean
   /** Ask before quitting while files are being compressed. */
   confirmQuit: boolean
+  /** Look for a new version on GitHub when the app starts. */
+  checkForUpdates: boolean
+  watchFolders: WatchFolder[]
+}
+
+export interface UpdateState {
+  state: 'idle' | 'checking' | 'none' | 'available' | 'downloading' | 'ready' | 'error'
+  /** The running version. */
+  current: string
+  /** The newest version found. */
+  version?: string
+  /** Download progress, 0-100. */
+  percent?: number
+  notes?: string
+  /** Release page, for copies that cannot update themselves. */
+  url?: string
+  error?: string
+  lastChecked?: number
+  /** True when this copy downloads and installs updates by itself. */
+  selfUpdate: boolean
+}
+
+export interface AiAppStatus {
+  id: string
+  name: string
+  installed: boolean
+  connected: boolean
+  /** The settings file SquashForge edits. Null for Claude Code, which has its own command. */
+  configPath: string | null
+  /** What to do after connecting, e.g. restart the app. */
+  after: string
+}
+
+export interface IntegrationsInfo {
+  /** False for copies that move around (portable, AppImage). */
+  supported: boolean
+  problem?: string
+  apps: AiAppStatus[]
+  /** For apps not listed: the JSON to paste into their MCP settings. */
+  manualJson: string | null
+  claudeCodeCommand: string | null
+  command: { path: string; installed: boolean; onPath: boolean }
+}
+
+export interface IntegrationResult {
+  ok: boolean
+  message: string
 }
 
 export interface AppInfo {
@@ -233,6 +300,9 @@ export interface MediaJob extends MediaFile {
   videoOverride?: VideoJobConfig
   /** Part of a video to keep. */
   trim?: TrimRange
+  /** Where this file's copy goes, when not the shared Output settings (watched folders). */
+  outputOverride?: OutputSettings
+  origin?: RunOrigin
   status: JobStatus
   progress: ProgressStatus
   compressedSizeBytes?: number
@@ -246,8 +316,12 @@ export interface MediaJob extends MediaFile {
   finishedAt?: number
 }
 
+/** Where a batch came from: the window, a watched folder, the command line or an AI app. */
+export type RunOrigin = 'app' | 'watch' | 'cli' | 'ai'
+
 export interface JobRequest {
   id: string
+  origin?: RunOrigin
   filePath: string
   relativeDir?: string
   type: MediaType
@@ -283,6 +357,40 @@ export interface QueueStats {
   /** Size of the finished files before and after, for the run. */
   originalBytes: number
   outputBytes: number
+}
+
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+
+export interface HistoryEntry {
+  jobId: string
+  type: MediaType
+  source: string
+  output: string
+  originalBytes: number
+  outputBytes: number
+  /** Replace mode: the output took the original's place and the original went to the bin. */
+  replaced: boolean
+  /** The original was copied unchanged (compressing did not help). */
+  copied?: boolean
+  sourceMtimeMs: number
+  finishedAt: number
+  undone?: boolean
+}
+
+export interface HistoryRun {
+  id: string
+  origin: RunOrigin
+  startedAt: number
+  finishedAt: number
+  entries: HistoryEntry[]
+}
+
+export interface UndoResult {
+  ok: boolean
+  jobId?: string
+  message: string
 }
 
 // ---------------------------------------------------------------------------

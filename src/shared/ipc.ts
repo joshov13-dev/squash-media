@@ -2,7 +2,10 @@ import type {
   AppInfo,
   AppPreferences,
   HardwareProfile,
+  HistoryRun,
   ImageOriginal,
+  IntegrationResult,
+  IntegrationsInfo,
   ImagePreviewRequest,
   ImagePreviewResult,
   JobRequest,
@@ -11,7 +14,10 @@ import type {
   QueueStats,
   ResolveResult,
   SystemLoad,
+  UndoResult,
+  UpdateState,
   VideoPreviewRequest,
+  WatchStatus,
   VideoPreviewResult,
   WhenDone,
 } from './types'
@@ -35,6 +41,22 @@ export const IPC = {
   openPath: 'shell:open',
   powerAction: 'power:action',
   setPreferences: 'app:set-preferences',
+  historyList: 'history:list',
+  historyUndoRun: 'history:undo-run',
+  historyUndoEntry: 'history:undo-entry',
+  copyText: 'clipboard:write',
+  watchStatus: 'watch:status',
+  getWatchStatus: 'watch:get-status',
+  watchFound: 'watch:found',
+  getLoginItem: 'app:get-login-item',
+  updateState: 'update:state',
+  integrations: 'ai:info',
+  connectAiApp: 'ai:connect',
+  installCommand: 'ai:install-command',
+  getUpdateState: 'update:get',
+  checkForUpdate: 'update:check',
+  installUpdate: 'update:install',
+  setLoginItem: 'app:set-login-item',
   // main -> renderer
   jobUpdate: 'queue:update',
   queueStats: 'queue:stats',
@@ -67,6 +89,28 @@ export interface SquashApi {
   revealInFolder(path: string): Promise<void>
   openPath(path: string): Promise<void>
   setPreferences(prefs: AppPreferences): Promise<void>
+  /** Newest first, including runs from the command line and AI apps. */
+  listHistory(limit?: number): Promise<HistoryRun[]>
+  undoRun(runId: string): Promise<UndoResult[]>
+  undoEntry(runId: string, jobId: string): Promise<UndoResult>
+  copyText(text: string): Promise<void>
+  getWatchStatus(): Promise<WatchStatus[]>
+  onWatchStatus(cb: (status: WatchStatus[]) => void): Unsubscribe
+  /** New files in a watched folder, once they have finished being written. */
+  onWatchFound(cb: (found: { watchId: string; paths: string[] }) => void): Unsubscribe
+  /** Whether SquashForge starts (minimised) when the user signs in. Null where not supported. */
+  getLoginItem(): Promise<boolean | null>
+  setLoginItem(open: boolean): Promise<void>
+  getUpdateState(): Promise<UpdateState>
+  checkForUpdate(): Promise<UpdateState>
+  /** Restart into a downloaded update, or open the download page. */
+  installUpdate(): Promise<void>
+  onUpdateState(cb: (state: UpdateState) => void): Unsubscribe
+  /** AI apps found on this computer and whether SquashForge is connected to them. */
+  getIntegrations(): Promise<IntegrationsInfo>
+  connectAiApp(id: string, connect: boolean): Promise<IntegrationResult>
+  /** Install the "squashforge" terminal command. */
+  installCommand(): Promise<IntegrationResult>
   /** Put the PC to sleep or shut it down once the queue is finished. */
   powerAction(action: Exclude<WhenDone, 'nothing'>): Promise<void>
   onJobUpdate(cb: (update: JobUpdate) => void): Unsubscribe
