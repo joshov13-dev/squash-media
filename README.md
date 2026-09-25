@@ -390,7 +390,7 @@ That file couldn't be compressed, and the red text says why in plain words. Hove
 - The file is damaged. Check it opens in another program.
 - The graphics card failed and so did the processor. That usually means the file is damaged or in an unusual format.
 
-If you think it's a bug, hover over the file and click the clipboard button (**Copy the details**), or click **Copy details** in the box under the queue. Then paste it into a [new issue](https://github.com/joshov13-dev/squash-media/issues/new). It includes the file's details and your settings, but not its folder, which could include your name.
+If you think it's a bug, hover over the file and click the clipboard button (**Copy the details**), or click **Copy details** in the box under the queue. Then paste it into a [new issue](https://github.com/joshov13-dev/squash-media/issues/new). It includes the file's details and your settings, but not its folder, which could include your name. For anything that isn't tied to one file, see [Getting the log](#getting-the-log) below.
 
 ### It says "Original kept"
 
@@ -423,6 +423,19 @@ The folder has been moved, renamed, or is on a drive that isn't plugged in. Squa
 ### The AI app doesn't show SquashForge
 
 Make sure you restarted the AI app fully after connecting (for Claude, quit it from the tray or menu bar, not just the window). If you moved or reinstalled SquashForge somewhere else, click **Remove** and then **Connect** again so the app has the new location.
+
+### Getting the log
+
+SquashForge keeps a plain text log of what it does: files it compressed, problems it hit, watch folders, updates and AI app activity. If something doesn't seem right, run it again to make sure it's in the log, then:
+
+1. Open **Settings** and choose **General**.
+2. Under **Diagnostics**, click **Copy the log**, then paste it wherever you're describing the problem (a [new issue](https://github.com/joshov13-dev/squash-media/issues/new), for instance).
+
+**Open the log file** next to it opens the folder the log lives in, if you'd rather attach the file itself. The log includes file names and paths but never the files themselves, and stays on your computer unless you choose to share it.
+
+If a problem is hard to catch, turn on **Detailed logging** first (same section), reproduce the problem, then copy the log; it adds extra detail that isn't kept by default. Logs are kept for 14 days and then deleted automatically.
+
+The `squashforge logs` command shows the same thing from a terminal: `squashforge logs` prints the most recent entries, `squashforge logs --lines 500` shows more, and `squashforge logs --path` just prints where the file is.
 
 ## Keyboard shortcuts
 
@@ -505,6 +518,7 @@ src/
 │   ├── trash.ts               Recycle Bin / Trash, and finding files there again
 │   ├── watcher.ts             watch folders
 │   ├── updater.ts             update checks and installs
+│   ├── logger.ts              the log file: rotation, retention, size cap
 │   ├── services/
 │   │   ├── imageProcessor.ts  sharp pipelines, target-size search, previews
 │   │   ├── heic.ts            HEIC decoding through FFmpeg, keeping EXIF

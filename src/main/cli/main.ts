@@ -14,6 +14,7 @@ import {
   type PhotoOptions,
   type VideoOptions,
 } from '../automation/options'
+import { flushLogs, listLogFiles, logFilePath, logger, readRecentLog } from '../logger'
 import { serveStdio } from '../mcp/server'
 
 const HELP = `SquashForge ${__APP_VERSION__}: compress photos and videos
@@ -24,6 +25,7 @@ Usage:
   squashforge info                              This computer's CPU, graphics card and goals
   squashforge history [--limit 10]              Recent runs
   squashforge undo <run id>                     Undo a run (copies to the bin, originals back)
+  squashforge logs [--lines 200] [--path]       Recent log entries, for reporting a problem
   squashforge mcp                               Run the MCP server for AI apps (stdio)
 
 Compress options:
@@ -55,6 +57,10 @@ Compress options:
       --dry-run             Show what would happen without writing anything
       --json                Print the result as JSON (progress goes to stderr)
       --quiet               No progress output
+
+  logs command:
+      --lines <n>            How many recent lines to show (default 200)
+      --path                 Print the log file's path instead
 
 Examples:
   squashforge compress "C:\\Users\\Sam\\Pictures\\Holiday"
@@ -201,6 +207,7 @@ async function compress(paths: string[], values: Record<string, string | boolean
   while (status.state === 'running') status = (await engine.wait(batchId, 60_000))!
   stop()
   await engine.history.flush()
+  await flushLogs()
   if (json) out(JSON.stringify(status, null, 2))
   else printSummary(status)
   return status.failed ? 1 : stopping ? 130 : 0
@@ -266,8 +273,27 @@ async function undo(runId: string | undefined): Promise<number> {
   const engine = new Engine('cli')
   const results = await engine.history.undoRun(runId)
   await engine.history.flush()
+  await flushLogs()
   for (const r of results) (r.ok ? out : err)(r.message)
   return results.every((r) => r.ok) ? 0 : 1
+}
+
+async function logs(values: Record<string, string | boolean | undefined>): Promise<number> {
+  const files = await listLogFiles()
+  if (values.path) {
+    out(files.length ? files[files.length - 1] : logFilePath())
+    return 0
+  }
+  if (!files.length) {
+    out(`No log entries yet. They will be written to ${logFilePath()}.`)
+    return 0
+  }
+  const lines = Number(values.lines ?? 200) || 200
+  const text = await readRecentLog()
+  const tail = text.split('\n').filter(Boolean).slice(-lines).join('\n')
+  out(tail)
+  out(`\n(${files[files.length - 1]})`)
+  return 0
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -296,6 +322,8 @@ async function main(argv: string[]): Promise<number> {
       json: { type: 'boolean' },
       quiet: { type: 'boolean' },
       limit: { type: 'string' },
+      lines: { type: 'string' },
+      path: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -321,6 +349,8 @@ async function main(argv: string[]): Promise<number> {
       return history(Number(values.limit ?? 10) || 10, json)
     case 'undo':
       return undo(rest[0])
+    case 'logs':
+      return logs(values)
     case 'mcp':
       await serveStdio(new Engine('ai'))
       return 0
@@ -332,12 +362,14 @@ async function main(argv: string[]): Promise<number> {
 export function run(argv: string[]): void {
   main(argv).then(
     (code) => process.exit(code),
-    (e) => {
+    async (e) => {
       if (e instanceof UsageError || e instanceof OptionError || (e as NodeJS.ErrnoException).code?.startsWith?.('ERR_PARSE_ARGS')) {
         err(e.message)
         err('Try "squashforge help".')
         process.exit(2)
       }
+      logger.error('cli', 'Command failed', e)
+      await flushLogs()
       err(e instanceof Error ? (e.stack ?? e.message) : String(e))
       process.exit(1)
     },

@@ -212,6 +212,8 @@ export interface AppPreferences {
   /** Look for a new version on GitHub when the app starts. */
   checkForUpdates: boolean
   watchFolders: WatchFolder[]
+  /** Adds extra detail to the log file, for reporting a problem. */
+  verboseLogging: boolean
 }
 
 export interface UpdateState {

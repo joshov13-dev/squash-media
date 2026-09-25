@@ -1,15 +1,38 @@
+import { Check, Copy, FolderOpen } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { ENCODER_LABELS } from '@shared/codecs'
 import { exampleName } from '@shared/naming'
+import { api } from '@renderer/lib/api'
 import { useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
-import { Field, Segmented, Toggle } from '../ui/controls'
+import { Button, Field, Segmented, Toggle } from '../ui/controls'
 import { Group } from './Group'
+
+function CopyLogButton() {
+  const [copied, setCopied] = useState(false)
+  const copy = async (): Promise<void> => {
+    const text = await api.getLogText()
+    await api.copyText(text || 'The log is empty so far.')
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <Button size="sm" variant="raised" onClick={() => void copy()}>
+      {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy the log'}
+    </Button>
+  )
+}
 
 export function GeneralPane() {
   const prefs = useSettings((s) => s.preferences)
   const set = useSettings((s) => s.setPreferences)
   const nameTemplate = useSettings((s) => s.output.nameTemplate)
   const hw = useSystem((s) => s.hardware)
+  const [logPath, setLogPath] = useState<string | null>(null)
+
+  useEffect(() => {
+    void api.getLogPath().then(setLogPath)
+  }, [])
 
   const gpuEncoders = hw?.availableGpuEncoders ?? []
   const hasGpu = gpuEncoders.length > 0
@@ -97,6 +120,30 @@ export function GeneralPane() {
           hint="Closing the window stops the files being worked on."
           checked={prefs.confirmQuit}
           onChange={(confirmQuit) => set({ confirmQuit })}
+        />
+      </Group>
+
+      <Group title="Diagnostics">
+        <p className="text-[12px] leading-relaxed text-ink-3">
+          SquashForge keeps a log of what it does: files compressed, problems, and settings changes. Run something, then copy the log here to
+          share it. It includes file names and paths, but never the files themselves.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="raised" onClick={() => void api.openLogsFolder()}>
+            <FolderOpen size={13} /> Open the log file
+          </Button>
+          <CopyLogButton />
+        </div>
+        {logPath && (
+          <p className="num truncate text-[12px] text-ink-3" title={logPath}>
+            {logPath}
+          </p>
+        )}
+        <Toggle
+          label="Detailed logging"
+          hint="Adds extra detail, useful when tracking down a specific problem. Makes the log file bigger."
+          checked={prefs.verboseLogging}
+          onChange={(verboseLogging) => set({ verboseLogging })}
         />
       </Group>
     </div>
