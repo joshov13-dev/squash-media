@@ -409,3 +409,31 @@ describe('real encodes', async () => {
     expect(r.estimatedBytes).toBeGreaterThanOrEqual(r.sampleBytes)
   })
 })
+
+describe('Apple VideoToolbox', () => {
+  const mac = { encoderSupport: { h264: ['cpu', 'videotoolbox'], hevc: ['cpu', 'videotoolbox'], av1: ['cpu'], vp9: ['cpu'] } } as Pick<
+    HardwareProfile,
+    'encoderSupport'
+  >
+
+  it('is picked by auto on a Mac and maps quality to its 1-100 scale', () => {
+    const config = cfg({ codec: 'hevc', crf: 24 })
+    const encoder = resolveEncoder(config, mac)
+    expect(encoder).toMatchObject({ mode: 'videotoolbox', name: 'hevc_videotoolbox' })
+    const list = args({ config, encoder })
+    expect(after(list, '-c:v')).toBe('hevc_videotoolbox')
+    const q = Number(after(list, '-q:v'))
+    expect(q).toBeGreaterThan(40)
+    expect(q).toBeLessThan(70)
+    expect(list).toContain('-allow_sw')
+    // Better quality asks for a higher number.
+    expect(Number(after(args({ config: cfg({ codec: 'hevc', crf: 18 }), encoder }), '-q:v'))).toBeGreaterThan(q)
+  })
+
+  it('uses a bitrate for target sizes and never handles AV1', () => {
+    const config = cfg({ rateControl: 'bitrate', targetBitrateKbps: 3000 })
+    const list = args({ config, encoder: resolveEncoder(config, mac), videoBitrateKbps: 3000 })
+    expect(after(list, '-b:v')).toBe('3000k')
+    expect(resolveEncoder(cfg({ codec: 'av1' }), mac).mode).toBe('cpu')
+  })
+})

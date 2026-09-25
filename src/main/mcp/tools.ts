@@ -69,7 +69,7 @@ const optionsSchema = {
       audio_kbps: { type: 'integer', minimum: 32, maximum: 512 },
       encoder: {
         type: 'string',
-        enum: ['auto', 'cpu', 'nvenc', 'qsv', 'amf'],
+        enum: ['auto', 'cpu', 'nvenc', 'qsv', 'amf', 'videotoolbox'],
         description: 'auto (default) uses the graphics card when it can, which is many times faster; cpu makes slightly smaller files.',
       },
       speed: { type: 'string', enum: ['fastest', 'fast', 'medium', 'slow'], description: 'Slower squeezes a little harder on the CPU.' },

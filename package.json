@@ -3,8 +3,11 @@
   "productName": "SquashForge",
   "version": "0.2.0",
   "private": true,
-  "description": "Batch image and video compressor for Windows. Caesium-style image squeezing and HandBrake-style video encoding in one queue.",
-  "author": "SquashForge",
+  "description": "Compress photos and videos on Windows, macOS and Linux. Caesium-style image squeezing and HandBrake-style video encoding in one queue.",
+  "author": {
+    "name": "SquashForge",
+    "email": "squashforge@users.noreply.github.com"
+  },
   "homepage": "https://github.com/joshov13-dev/squash-media",
   "license": "MIT",
   "main": "./out/main/index.js",
@@ -17,8 +20,10 @@
     "test": "vitest run",
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "dist:win": "npm run build && electron-builder --win --x64 --config electron-builder.json5",
-    "dist:dir": "npm run build && electron-builder --dir --config electron-builder.json5"
+    "dist:win": "npm run build && electron-builder --win --x64 --publish never --config electron-builder.json5",
+    "dist:dir": "npm run build && electron-builder --dir --publish never --config electron-builder.json5",
+    "dist:mac": "npm run build && electron-builder --mac --publish never --config electron-builder.json5",
+    "dist:linux": "npm run build && electron-builder --linux --publish never --config electron-builder.json5"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

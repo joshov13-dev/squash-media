@@ -54,4 +54,10 @@
   !insertmacro SquashForgeEachExtension SquashForgeVerbRemove
   DeleteRegKey SHCTX "Software\Classes\Directory\shell\SquashForge"
   Delete "$SENDTO\SquashForge.lnk"
+  ; The "squashforge" command, if it was installed from Settings. Updates run
+  ; the old uninstaller too, so leave it alone then.
+  ${IfNot} ${isUpdated}
+    RMDir /r "$LOCALAPPDATA\SquashForge\bin"
+    nsExec::Exec `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$d=[Environment]::GetFolderPath('LocalApplicationData')+'\SquashForge\bin'; $$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$$true); $$p=[string]$$k.GetValue('Path','','DoNotExpandEnvironmentNames'); $$n=(@($$p -split ';' | Where-Object { $$_ -and ($$_.TrimEnd('\') -ne $$d) }) -join ';'); if ($$n -ne $$p) { $$k.SetValue('Path',$$n,'ExpandString') }"`
+  ${EndIf}
 !macroend

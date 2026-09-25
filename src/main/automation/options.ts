@@ -125,7 +125,7 @@ const IMAGE_FORMATS: ImageOutputFormat[] = ['original', 'jpeg', 'png', 'webp', '
 const SCALES: VideoScale[] = ['original', '2160p', '1440p', '1080p', '720p', '480p']
 const SPEEDS: Record<string, VideoSpeedPreset> = { fastest: 'ultrafast', ultrafast: 'ultrafast', fast: 'fast', medium: 'medium', slow: 'slow' }
 const AUDIO: Record<string, AudioMode> = { keep: 'copy', copy: 'copy', aac: 'aac', opus: 'opus', none: 'none' }
-const ENCODERS: EncoderChoice[] = ['auto', 'cpu', 'nvenc', 'qsv', 'amf']
+const ENCODERS: EncoderChoice[] = ['auto', 'cpu', 'nvenc', 'qsv', 'amf', 'videotoolbox']
 
 function oneOf<T extends string>(value: string, allowed: readonly T[], what: string): T {
   const v = value.toLowerCase() as T

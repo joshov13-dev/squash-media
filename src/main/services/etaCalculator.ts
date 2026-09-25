@@ -72,6 +72,7 @@ const GPU_MPX_PER_SEC: Record<Exclude<EncoderMode, 'cpu'>, number> = {
   nvenc: 520,
   qsv: 380,
   amf: 380,
+  videotoolbox: 420,
 }
 
 const GPU_PRESET_FACTOR: Record<VideoSpeedPreset, number> = {

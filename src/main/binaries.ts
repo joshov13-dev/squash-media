@@ -12,7 +12,7 @@ const exe = process.platform === 'win32' ? '.exe' : ''
 
 function platformDir(): string {
   if (process.platform === 'win32') return 'win'
-  if (process.platform === 'darwin') return 'mac'
+  if (process.platform === 'darwin') return process.arch === 'arm64' ? 'mac-arm64' : 'mac-x64'
   return 'linux'
 }
 

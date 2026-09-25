@@ -5,8 +5,8 @@ import type { EncoderMode, VideoCodec } from '@shared/types'
 import { cn } from '@renderer/lib/cn'
 import { useSystem } from '@renderer/store/systemStore'
 
-const MODES: EncoderMode[] = ['cpu', 'nvenc', 'qsv', 'amf']
-const MODE_NAMES: Record<EncoderMode, string> = { cpu: 'CPU', nvenc: 'NVENC', qsv: 'QSV', amf: 'AMF' }
+const MODES: EncoderMode[] = window.api.platform === 'darwin' ? ['cpu', 'videotoolbox'] : ['cpu', 'nvenc', 'qsv', 'amf']
+const MODE_NAMES: Record<EncoderMode, string> = { cpu: 'CPU', nvenc: 'NVENC', qsv: 'QSV', amf: 'AMF', videotoolbox: 'VideoToolbox' }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (

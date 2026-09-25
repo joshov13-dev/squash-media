@@ -46,7 +46,8 @@ Compress options:
       --crf <n>             Constant quality: lower is better and bigger
       --resolution <res>    2160p, 1440p, 1080p, 720p or 480p
       --fps <n>             Cap the frame rate
-      --encoder <enc>       auto (graphics card when possible), cpu, nvenc, qsv or amf
+      --encoder <enc>       auto (graphics card when possible), cpu, nvenc, qsv, amf
+                            or videotoolbox (Mac)
       --no-audio            Drop the sound
 
   Other:

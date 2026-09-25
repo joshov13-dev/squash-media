@@ -15,7 +15,7 @@ const QUICK_TARGETS: Array<{ label: string; bytes: number }> = [
   { label: '100 MB', bytes: 100 * MB },
 ]
 
-const ENCODER_SHORT: Record<EncoderMode, string> = { cpu: 'CPU', nvenc: 'NVENC', qsv: 'QSV', amf: 'AMF' }
+const ENCODER_SHORT: Record<EncoderMode, string> = { cpu: 'CPU', nvenc: 'NVENC', qsv: 'QSV', amf: 'AMF', videotoolbox: 'Apple' }
 
 export function VideoSettings() {
   const editor = useVideoEditor()
@@ -41,7 +41,9 @@ export function VideoSettings() {
           : `Uses ${ENCODER_LABELS[autoPick]} (much faster), and the CPU if it ever fails`,
     },
   ]
-  for (const mode of ['cpu', 'nvenc', 'qsv', 'amf'] as EncoderMode[]) {
+  for (const mode of ['cpu', 'nvenc', 'qsv', 'amf', 'videotoolbox'] as EncoderMode[]) {
+    // Only offer VideoToolbox on a Mac, and the others everywhere else.
+    if ((mode === 'videotoolbox') !== (window.api.platform === 'darwin') && mode !== 'cpu') continue
     const exists = ENCODER_NAMES[video.codec][mode] !== null
     const works = supported.includes(mode)
     let hint = `${ENCODER_LABELS[mode]}: ${ENCODER_NAMES[video.codec][mode]}`

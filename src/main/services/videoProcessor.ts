@@ -317,6 +317,18 @@ function qualityArgs(input: BuildArgsInput): string[] {
           const scaled = CODECS[config.codec].crfMax > 51 ? Math.round((crf * 51) / 63) : crf
           args.push('-global_quality', String(Math.max(1, scaled)))
         }
+      } else if (encoder.mode === 'videotoolbox') {
+        if (bitrateMode) {
+          args.push('-b:v', `${kbps}k`, '-maxrate', `${Math.round(kbps! * 1.5)}k`, '-bufsize', `${kbps! * 2}k`)
+        } else {
+          // Constant quality runs 1-100 (higher is better). Map the CRF so
+          // each codec's sweet spot lands around 55-65.
+          const spec = CODECS[config.codec]
+          const q = Math.round(100 - ((crf - spec.crfMin) / (spec.crfMax - spec.crfMin)) * 100 * 1.1)
+          args.push('-q:v', String(Math.max(1, Math.min(100, q))))
+        }
+        // Fall back to Apple's software encoder instead of failing on odd sizes.
+        args.push('-allow_sw', '1')
       } else if (encoder.mode === 'amf') {
         args.push('-quality', AMF_QUALITY[config.preset])
         if (bitrateMode) {

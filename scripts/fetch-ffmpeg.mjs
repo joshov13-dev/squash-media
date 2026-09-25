@@ -1,7 +1,8 @@
 // Downloads ffmpeg + ffprobe into binaries/<platform>.
 //
 //   node scripts/fetch-ffmpeg.mjs          -> Windows x64 (for packaging)
-//   node scripts/fetch-ffmpeg.mjs linux    -> Linux x64 (for local development)
+//   node scripts/fetch-ffmpeg.mjs linux    -> Linux x64 (development and the Linux packages)
+//   node scripts/fetch-ffmpeg.mjs mac-arm64 / mac-x64 -> macOS (Apple silicon / Intel)
 //
 // Windows uses the "shared" build: ffmpeg.exe and ffprobe.exe are tiny and
 // load the same set of DLLs, so the pair is about 190 MB instead of the
@@ -9,7 +10,7 @@
 //
 // Override the download with FFMPEG_URL=<zip or tar.xz url>.
 import { execFileSync } from 'node:child_process'
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -37,9 +38,20 @@ const SOURCES = {
   },
 }
 
+// Martin Riedl's static macOS builds come as one zip per program.
+const RIEDL = 'https://ffmpeg.martin-riedl.de/redirect/latest/macos'
+for (const [name, arch] of [['mac-arm64', 'arm64'], ['mac-x64', 'amd64']]) {
+  SOURCES[name] = {
+    dir: name,
+    exe: '',
+    libraries: null,
+    split: { ffmpeg: `${RIEDL}/${arch}/release/ffmpeg.zip`, ffprobe: `${RIEDL}/${arch}/release/ffprobe.zip` },
+  }
+}
+
 const source = SOURCES[target]
 if (!source) {
-  console.error(`Unknown target "${target}". Use "win" or "linux".`)
+  console.error(`Unknown target "${target}". Use win, linux, mac-arm64 or mac-x64.`)
   process.exit(1)
 }
 
@@ -78,6 +90,31 @@ function find(dir, name) {
     }
   }
   return null
+}
+
+if (source.split) {
+  try {
+    rmSync(outDir, { recursive: true, force: true })
+    mkdirSync(outDir, { recursive: true })
+    for (const [tool, url] of Object.entries(source.split)) {
+      const zip = join(work, `${tool}.zip`)
+      console.log(`Downloading ${url}`)
+      download(url, zip)
+      extract(zip, join(work, tool))
+      const file = find(join(work, tool), tool)
+      if (!file) throw new Error(`${tool} not found in the archive`)
+      copyFileSync(file, join(outDir, tool))
+      chmodSync(join(outDir, tool), 0o755)
+    }
+    writeFileSync(
+      join(outDir, 'FFMPEG-LICENSE.txt'),
+      'FFmpeg static build for macOS by Martin Riedl (https://ffmpeg.martin-riedl.de), licensed under the GNU GPL version 3.\nSource code: https://ffmpeg.org/download.html\n',
+    )
+    console.log(`ffmpeg and ffprobe are in ${outDir}`)
+  } finally {
+    rmSync(work, { recursive: true, force: true })
+  }
+  process.exit(0)
 }
 
 try {

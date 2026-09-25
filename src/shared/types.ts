@@ -7,7 +7,7 @@ export type MediaType = 'image' | 'video'
 // ---------------------------------------------------------------------------
 
 export type GpuVendor = 'nvidia' | 'intel' | 'amd' | 'apple' | 'other'
-export type EncoderMode = 'cpu' | 'nvenc' | 'qsv' | 'amf'
+export type EncoderMode = 'cpu' | 'nvenc' | 'qsv' | 'amf' | 'videotoolbox'
 export type HardwareEncoderMode = Exclude<EncoderMode, 'cpu'>
 /** What the user picks. "auto" uses the graphics card when one can encode the codec. */
 export type EncoderChoice = EncoderMode | 'auto'
