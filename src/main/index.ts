@@ -8,6 +8,7 @@ import { getHardwareProfile } from './hardware'
 import { registerIpcHandlers } from './ipc/handlers'
 import { CalibrationStore } from './services/etaCalculator'
 import { userDataDir, userDataFile } from './appPaths'
+import { flushLogs, logger, setVerboseLogging } from './logger'
 import { getPreferences, onPreferencesChanged, usePreferencesFile } from './preferences'
 import { HistoryStore } from './services/history'
 import { JobQueue } from './services/jobQueue'
@@ -169,14 +170,40 @@ if (!app.requestSingleInstanceLock()) {
     app.setAppUserModelId('com.squashforge.app')
 
     usePreferencesFile(userDataFile('preferences.json'))
+    logger.info('app', 'SquashForge started', {
+      version: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      packaged: app.isPackaged,
+    })
+    void getHardwareProfile().then((hw) =>
+      logger.info('hardware', 'Detected hardware', {
+        cpu: hw.cpuModel,
+        threads: hw.logicalCores,
+        gpus: hw.gpus.map((g) => g.model),
+        gpuEncoders: hw.availableGpuEncoders,
+        ffmpeg: hw.ffmpegAvailable ? hw.ffmpegVersion : 'missing',
+      }),
+    )
     const watcher = new FolderWatcher({
-      onFound: (watchId, paths) => send(IPC.watchFound, { watchId, paths }),
-      onStatus: (status) => send(IPC.watchStatus, status),
+      onFound: (watchId, paths) => {
+        logger.info('watch', `${paths.length} new ${paths.length === 1 ? 'file' : 'files'}`, { watchId, paths })
+        send(IPC.watchFound, { watchId, paths })
+      },
+      onStatus: (status) => {
+        for (const s of status) if (s.error) logger.warn('watch', `Folder problem: ${s.error}`, { id: s.id })
+        send(IPC.watchStatus, status)
+      },
     })
     watcher.update(getPreferences().watchFolders)
-    const updater = new Updater((state) => send(IPC.updateState, state))
+    const updater = new Updater((state) => {
+      if (state.state === 'error') logger.warn('update', state.error ?? 'Update check failed')
+      else if (state.state === 'available' || state.state === 'ready') logger.info('update', `Version ${state.version} ${state.state}`)
+      send(IPC.updateState, state)
+    })
     const followPreferences = (prefs: AppPreferences): void => {
       watcher.update(prefs.watchFolders)
+      setVerboseLogging(prefs.verboseLogging)
       if (prefs.checkForUpdates) updater.startAutomatic()
       else updater.stopAutomatic()
     }
@@ -190,9 +217,19 @@ if (!app.requestSingleInstanceLock()) {
       calibration,
       emitUpdate: (u) => {
         if (u.outputPath) watcher.ignore(u.outputPath)
+        if (u.status === 'failed') logger.warn('queue', `Failed: ${u.error}`, { jobId: u.jobId, detail: u.errorDetail })
         send(IPC.jobUpdate, u)
       },
-      emitStats: onQueueStats,
+      emitStats: (stats) => {
+        if (!stats.active && wasActive && stats.total > 0) {
+          logger.info('queue', `Run finished: ${stats.completed} of ${stats.total} done, ${stats.failed} failed`, {
+            elapsedSeconds: stats.elapsedSeconds,
+            originalBytes: stats.originalBytes,
+            outputBytes: stats.outputBytes,
+          })
+        }
+        onQueueStats(stats)
+      },
       trash: (p) => shell.trashItem(p),
       history,
     })
@@ -210,8 +247,10 @@ if (!app.requestSingleInstanceLock()) {
     })
 
     app.on('before-quit', () => {
+      logger.info('app', 'Quitting')
       watcher.stop()
       void history.flush()
+      void flushLogs()
       queue?.cancelAll()
       monitor?.stop()
     })

@@ -49,6 +49,7 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   confirmQuit: true,
   checkForUpdates: true,
   watchFolders: [],
+  verboseLogging: false,
 }
 
 export const DEFAULT_OUTPUT: OutputSettings = {

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { existsSync } from 'node:fs'
-import { isAbsolute } from 'node:path'
+import { dirname, isAbsolute } from 'node:path'
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/codecs'
 import { IPC } from '@shared/ipc'
 import type {
@@ -15,6 +15,7 @@ import type {
 } from '@shared/types'
 import { getHardwareProfile } from '../hardware'
 import { connectApp, installCommand, integrationsInfo } from '../integrations'
+import { listLogFiles, logFilePath, readRecentLog } from '../logger'
 import { runPowerAction } from '../power'
 import { setPreferences } from '../preferences'
 import { generateImagePreview, getDisplayableOriginal, makeImageThumbnail } from '../services/imageProcessor'
@@ -187,6 +188,13 @@ export function registerIpcHandlers({ queue, history, watcher, updater }: IpcSer
   ipcMain.handle(IPC.integrations, () => integrationsInfo())
   ipcMain.handle(IPC.connectAiApp, (_e, id: unknown, connect: unknown) => connectApp(String(id), connect !== false))
   ipcMain.handle(IPC.installCommand, () => installCommand())
+  ipcMain.handle(IPC.getLogText, () => readRecentLog(200_000))
+  ipcMain.handle(IPC.getLogPath, async () => (await listLogFiles()).at(-1) ?? logFilePath())
+  ipcMain.handle(IPC.openLogsFolder, async () => {
+    const path = (await listLogFiles()).at(-1) ?? logFilePath()
+    if (existsSync(path)) shell.showItemInFolder(path)
+    else shell.openPath(dirname(path))
+  })
   ipcMain.handle(IPC.checkForUpdate, () => updater.check())
   ipcMain.handle(IPC.installUpdate, () => updater.install())
   ipcMain.handle(IPC.getLoginItem, () => (loginItemsSupported ? app.getLoginItemSettings({ args: ['--hidden'] }).openAtLogin : null))

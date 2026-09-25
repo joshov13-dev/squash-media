@@ -7,6 +7,7 @@ import { formatBytes, formatEta } from '@shared/format'
 import type { HardwareProfile, ImageInfo, JobRequest, JobStatus, JobUpdate, MediaFile, ResolveResult, RunOrigin } from '@shared/types'
 import { userDataFile } from '../appPaths'
 import { getHardwareProfile } from '../hardware'
+import { logger, setVerboseLogging } from '../logger'
 import { applyOwnPriority, getPreferences, usePreferencesFile } from '../preferences'
 import { CalibrationStore } from '../services/etaCalculator'
 import { HistoryStore } from '../services/history'
@@ -70,6 +71,8 @@ export class Engine {
   readonly queue: JobQueue
   readonly history: HistoryStore
   private updates = new Map<string, JobUpdate>()
+  /** Batches already logged as finished, so a repeat status() call doesn't log twice. */
+  private logged = new Set<string>()
   private batches = new Map<string, Batch>()
   private waiters = new Set<() => void>()
   private listeners = new Set<(u: JobUpdate) => void>()
@@ -77,6 +80,8 @@ export class Engine {
   constructor(private readonly origin: RunOrigin) {
     usePreferencesFile(userDataFile('preferences.json'))
     applyOwnPriority()
+    setVerboseLogging(getPreferences().verboseLogging)
+    logger.info('engine', `Started (${origin})`, { version: __APP_VERSION__, platform: process.platform })
     this.history = new HistoryStore(userDataFile('history.json'), { trash: moveToTrash })
     this.queue = new JobQueue({
       getHardware: getHardwareProfile,
@@ -84,6 +89,7 @@ export class Engine {
       calibration: new CalibrationStore(userDataFile('eta-calibration.json')),
       emitUpdate: (u) => {
         this.updates.set(u.jobId, { ...this.updates.get(u.jobId), ...u })
+        if (u.status === 'failed') logger.warn('queue', `Failed: ${u.error}`, { jobId: u.jobId, detail: u.errorDetail })
         for (const l of this.listeners) l(u)
         if (FINISHED.includes(u.status)) this.wake()
       },
@@ -178,7 +184,7 @@ export class Engine {
     const finished = done.length === files.length
     const weight = files.reduce((n, f) => n + Math.max(1, f.before_bytes), 0)
     const progress = files.reduce((n, f) => n + Math.max(1, f.before_bytes) * (FINISHED.includes(f.status) ? 100 : f.percent), 0) / weight
-    return {
+    const result: BatchStatus = {
       batch_id: batch.id,
       state: finished ? (batch.cancelled ? 'cancelled' : 'finished') : 'running',
       total: files.length,
@@ -196,6 +202,16 @@ export class Engine {
       saved: `${formatBytes(Math.max(0, before - after))}${before ? ` (${Math.round((1 - after / before) * 100)}%)` : ''}`,
       files,
     }
+    if (finished && !this.logged.has(batch.id)) {
+      this.logged.add(batch.id)
+      logger.info('engine', `Batch ${batch.id} finished: ${result.completed} of ${result.total} done, ${result.failed} failed`, {
+        origin: this.origin,
+        elapsedSeconds: result.elapsed_seconds,
+        beforeBytes: before,
+        afterBytes: after,
+      })
+    }
+    return result
   }
 
   /** Resolves when the batch finishes or the time runs out, whichever is first. */

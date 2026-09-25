@@ -53,6 +53,9 @@ export const IPC = {
   integrations: 'ai:info',
   connectAiApp: 'ai:connect',
   installCommand: 'ai:install-command',
+  getLogText: 'logs:get-text',
+  getLogPath: 'logs:get-path',
+  openLogsFolder: 'logs:open-folder',
   getUpdateState: 'update:get',
   checkForUpdate: 'update:check',
   installUpdate: 'update:install',
@@ -111,6 +114,10 @@ export interface SquashApi {
   connectAiApp(id: string, connect: boolean): Promise<IntegrationResult>
   /** Install the "squashforge" terminal command. */
   installCommand(): Promise<IntegrationResult>
+  /** The recent log text, for "Copy the log". */
+  getLogText(): Promise<string>
+  getLogPath(): Promise<string>
+  openLogsFolder(): Promise<void>
   /** Put the PC to sleep or shut it down once the queue is finished. */
   powerAction(action: Exclude<WhenDone, 'nothing'>): Promise<void>
   onJobUpdate(cb: (update: JobUpdate) => void): Unsubscribe

@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline'
 import { GOALS } from '@shared/presets'
 import type { Engine } from '../automation/engine'
 import { goalShortName, OptionError } from '../automation/options'
+import { flushLogs, logger } from '../logger'
 import { TOOLS, type ToolResult } from './tools'
 
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
@@ -91,12 +92,15 @@ export class McpServer {
     const started = Date.now()
     try {
       const result = await tool.run(args, this.engine)
-      this.log(`${name} took ${Date.now() - started} ms`)
+      const ms = Date.now() - started
+      this.log(`${name} took ${ms} ms`)
+      logger.info('mcp', `${name} (${ms} ms)`, { args, isError: result.isError || undefined })
       return result
     } catch (e) {
       // Problems with the request go back to the model so it can fix them.
       const message = e instanceof OptionError ? e.message : `SquashForge hit a problem: ${e instanceof Error ? e.message : String(e)}`
       this.log(`${name} failed: ${e instanceof OptionError ? e.message : e instanceof Error ? e.stack : String(e)}`)
+      logger.error('mcp', `${name} failed`, { args, error: e })
       return { content: [{ type: 'text', text: message }], isError: true }
     }
   }
@@ -110,6 +114,7 @@ export async function serveStdio(engine: Engine): Promise<void> {
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity })
   const inflight = new Set<Promise<unknown>>()
   log(`SquashForge ${__APP_VERSION__} MCP server ready`)
+  logger.info('mcp', 'MCP server started')
 
   for await (const line of rl) {
     if (!line.trim()) continue
@@ -132,5 +137,7 @@ export async function serveStdio(engine: Engine): Promise<void> {
   }
   // The app closed the connection: stop any batches and save the history.
   log('Connection closed, stopping')
+  logger.info('mcp', 'Connection closed, stopping')
   await engine.close()
+  await flushLogs()
 }
