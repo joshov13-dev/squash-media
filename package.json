@@ -1,7 +1,7 @@
 {
   "name": "squashforge",
   "productName": "SquashForge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Compress photos and videos on Windows, macOS and Linux. Caesium-style image squeezing and HandBrake-style video encoding in one queue.",
   "author": {
