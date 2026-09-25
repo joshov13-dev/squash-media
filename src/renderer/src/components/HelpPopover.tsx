@@ -19,26 +19,35 @@ export function binName(): string {
   return window.api.platform === 'win32' ? 'Recycle Bin' : 'Trash'
 }
 
-const SHORTCUTS: Array<[string, string]> = [
+/** Keys, what they do, and whether they only apply to Normal view's comparison. */
+const SHORTCUTS: Array<[string, string, boolean?]> = [
   ['Ctrl + O', 'Add files'],
   ['Ctrl + Enter', 'Start compressing'],
   ['Up / Down', 'Move through the queue'],
   ['Delete', 'Remove the selected file'],
-  ['Mouse wheel', 'Zoom the comparison'],
-  ['Double-click', 'Zoom to 100% and back'],
+  ['Mouse wheel', 'Zoom the comparison', true],
+  ['Double-click', 'Zoom to 100% and back', true],
 ]
 
 export function HelpPopover() {
   const output = useSettings((s) => s.output)
   const app = useSystem((s) => s.app)
   const ffmpeg = useSystem((s) => s.hardware?.ffmpegVersion)
+  const simple = useSettings((s) => s.view === 'simple')
 
-  const steps = [
-    'Drag photos or videos onto this window, or use Add files. Whole folders work too.',
-    'Pick what you want in the Quick tab on the right, or leave it on "Smaller, same look". It suits most files.',
-    'Click a file to see the original and the compressed version side by side. Drag the line in the middle to compare.',
-    'Press Compress. ' + whereFilesGo(output),
-  ]
+  const steps = simple
+    ? [
+        'Drag photos or videos onto this window, or use Add files. Whole folders work too.',
+        'On the right, pick what the files are for. If you are not sure, leave it on "Smaller, same look".',
+        'Pick where the new files should go.',
+        'Press Compress. ' + whereFilesGo(output),
+      ]
+    : [
+        'Drag photos or videos onto this window, or use Add files. Whole folders work too.',
+        'Pick what you want in the Quick tab on the right, or leave it on "Smaller, same look". It suits most files.',
+        'Click a file to see the original and the compressed version side by side. Drag the line in the middle to compare.',
+        'Press Compress. ' + whereFilesGo(output),
+      ]
 
   return (
     <Popover.Root>
@@ -66,14 +75,16 @@ export function HelpPopover() {
               </li>
             ))}
           </ol>
-          <p className="mt-3 leading-relaxed text-ink-3">
-            Change where files go in the Output tab. To give one file different settings, select it and choose “This photo only” or “This
-            video only” at the top of the settings.
-          </p>
+          {!simple && (
+            <p className="mt-3 leading-relaxed text-ink-3">
+              Change where files go in the Output tab. To give one file different settings, select it and choose “This photo only” or “This video
+              only” at the top of the settings.
+            </p>
+          )}
 
           <h4 className="mt-5 font-display text-[13px] font-semibold text-ink">Keyboard</h4>
           <dl className="mt-2 grid grid-cols-[110px_1fr] gap-x-3 gap-y-1.5">
-            {SHORTCUTS.map(([keys, what]) => (
+            {SHORTCUTS.filter(([, , normalOnly]) => !(simple && normalOnly)).map(([keys, what]) => (
               <div key={keys} className="contents">
                 <dt className="num text-ink">{keys}</dt>
                 <dd className="text-ink-2">{what}</dd>

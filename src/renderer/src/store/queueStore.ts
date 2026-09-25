@@ -279,3 +279,18 @@ export const useQueue = create<QueueState>()((set, get) => ({
 export function useSelectedJob(): MediaJob | undefined {
   return useQueue((s) => s.jobs.find((j) => j.id === s.selectedId))
 }
+
+/** Which kinds of file are in the queue, so settings for the other kind can be hidden. */
+export function useQueueKinds(): { photos: boolean; videos: boolean } {
+  const photos = useQueue((s) => s.jobs.some((j) => j.type === 'image'))
+  const videos = useQueue((s) => s.jobs.some((j) => j.type === 'video'))
+  return { photos, videos }
+}
+
+/** Whether a run is going, and how many files a press of Compress would start. */
+export function useRunState(): { running: boolean; runnable: number } {
+  const active = useSystem((s) => s.stats?.active ?? false)
+  const running = useQueue((s) => s.jobs.some((j) => ACTIVE.includes(j.status)))
+  const runnable = useQueue((s) => s.jobs.filter((j) => RUNNABLE.includes(j.status)).length)
+  return { running: active || running, runnable }
+}

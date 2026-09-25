@@ -1,6 +1,7 @@
 import { FolderPlus, ListChecks, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { formatBytes } from '@shared/format'
 import { api } from '@renderer/lib/api'
+import { cn } from '@renderer/lib/cn'
 import { FINISHED, useQueue } from '@renderer/store/queueStore'
 import { useSettings } from '@renderer/store/settingsStore'
 import { whereFilesGo } from '../HelpPopover'
@@ -11,6 +12,7 @@ import { QueueItem } from './QueueItem'
 function EmptyQueue() {
   const addPaths = useQueue((s) => s.addPaths)
   const output = useSettings((s) => s.output)
+  const simple = useSettings((s) => s.view === 'simple')
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5 px-8 text-center">
       <svg width="112" height="72" viewBox="0 0 112 72" aria-hidden="true">
@@ -32,10 +34,12 @@ function EmptyQueue() {
           <span className="num font-semibold text-ember">1</span>Add your files.
         </li>
         <li className="flex gap-2.5">
-          <span className="num font-semibold text-ember">2</span>Click one to compare before and after.
+          <span className="num font-semibold text-ember">2</span>
+          {simple ? 'Choose what they are for, on the right.' : 'Click one to compare before and after.'}
         </li>
         <li className="flex gap-2.5">
-          <span className="num font-semibold text-ember">3</span>Press Compress at the top right.
+          <span className="num font-semibold text-ember">3</span>
+          {simple ? 'Press Compress.' : 'Press Compress at the top right.'}
         </li>
       </ol>
       <p className="max-w-72 text-[12px] leading-relaxed text-balance text-ink-3">{whereFilesGo(output)}</p>
@@ -57,7 +61,8 @@ function EmptyQueue() {
   )
 }
 
-export function QueuePanel() {
+/** The list of files. Wide fills the space the preview would take, for Simple view. */
+export function QueuePanel({ wide = false }: { wide?: boolean }) {
   const jobs = useQueue((s) => s.jobs)
   const selectedId = useQueue((s) => s.selectedId)
   const adding = useQueue((s) => s.adding)
@@ -76,7 +81,7 @@ export function QueuePanel() {
     .join(', ')
 
   return (
-    <aside className="flex w-[380px] shrink-0 flex-col bg-panel xl:w-[420px]">
+    <aside className={cn('flex flex-col bg-panel', wide ? 'min-w-0 flex-1' : 'w-[380px] shrink-0 xl:w-[420px]')}>
       <div className="flex h-12 shrink-0 items-center gap-2 pr-2 pl-4">
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-[13px] font-semibold text-ink">Queue</h2>

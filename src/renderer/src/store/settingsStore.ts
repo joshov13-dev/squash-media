@@ -16,6 +16,9 @@ import type { AppPreferences, ImageJobConfig, OutputSettings, VideoJobConfig } f
 
 export type SettingsTab = 'quick' | 'image' | 'video' | 'output'
 
+/** Simple shows a few plain choices. Normal shows the comparison and every setting. */
+export type ViewMode = 'simple' | 'normal'
+
 interface SettingsState {
   image: ImageJobConfig
   video: VideoJobConfig
@@ -28,6 +31,8 @@ interface SettingsState {
   /** The Quick tab goal the shared settings came from. Null once edited by hand. */
   goalId: string | null
   preferences: AppPreferences
+  /** Null until the person picks one on first launch. */
+  view: ViewMode | null
 
   setImage: (patch: Partial<ImageJobConfig>) => void
   setImageResize: (patch: Partial<ImageJobConfig['resize']>) => void
@@ -44,7 +49,8 @@ interface SettingsState {
   resetOutput: () => void
   applyGoal: (goal: Goal) => void
   setPreferences: (patch: Partial<AppPreferences>) => void
-  /** Everything back to how it was on first launch. Saved presets are kept. */
+  setView: (view: ViewMode) => void
+  /** Everything back to how it was on first launch. Saved presets and the view are kept. */
   resetAll: () => void
 }
 
@@ -78,6 +84,7 @@ export const useSettings = create<SettingsState>()(
       tab: 'quick',
       goalId: GOALS[0].id,
       preferences: DEFAULT_PREFERENCES,
+      view: null,
 
       setImage: (patch) => set((s) => ({ image: { ...s.image, ...patch }, imagePresetId: null, goalId: null })),
       setImageResize: (patch) =>
@@ -132,6 +139,7 @@ export const useSettings = create<SettingsState>()(
           goalId: goal.id,
         })),
       setPreferences: (patch) => set((s) => ({ preferences: { ...s.preferences, ...patch } })),
+      setView: (view) => set({ view }),
       resetAll: () =>
         set({
           image: DEFAULT_IMAGE_CONFIG,

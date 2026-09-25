@@ -121,7 +121,14 @@ export const IMAGE_PRESETS: Preset<ImageJobConfig>[] = [
 export interface Goal {
   id: string
   name: string
+  /** What it does to photos and videos together. */
   description: string
+  /** The same, in plain words, for when only photos are in the queue. */
+  photos: string
+  /** And for when only videos are. */
+  videos: string
+  /** Offered in Simple view. The rest stay in Normal view. */
+  simple: boolean
   image: ImageJobConfig
   /** The encoder choice is left as the user set it. */
   video: VideoJobConfig
@@ -187,6 +194,9 @@ export const GOALS: Goal[] = [
     id: 'goal-smaller',
     name: 'Smaller, same look',
     description: 'Keeps each file’s format and size. Most files shrink by half or more and look the same.',
+    photos: 'Keeps each photo’s format and picture size. Most shrink by half or more and look the same.',
+    videos: 'Keeps each video’s picture size and length. Most shrink by half or more and look the same.',
+    simple: true,
     image: img({}),
     video: vid({}),
     imagePresetId: 'img-balanced',
@@ -196,6 +206,9 @@ export const GOALS: Goal[] = [
     id: 'goal-share',
     name: 'Share online',
     description: 'WebP photos up to 2560 px and 1080p videos that play on any phone or browser.',
+    photos: 'Saves photos as WebP, at most 2560 px on the longest side. Sharp on any phone or website, and much smaller.',
+    videos: 'Makes 1080p videos that play on any phone or browser.',
+    simple: true,
     image: img({ format: 'webp', quality: 78, resize: fit(2560) }),
     video: vid({ scale: '1080p', fpsLimit: 30, crf: 23, audioBitrateKbps: 128 }),
     imagePresetId: 'img-web-webp',
@@ -204,6 +217,9 @@ export const GOALS: Goal[] = [
     id: 'goal-smallest',
     name: 'As small as possible',
     description: 'AVIF photos and H.265 video. The smallest files that still look good, but slower to make.',
+    photos: 'Saves photos as AVIF, the smallest format that still looks good. Some older programs cannot open it.',
+    videos: 'Saves videos as H.265 at 1080p. The smallest that still look good, but slower to make.',
+    simple: false,
     image: img({ format: 'avif', quality: 55 }),
     video: vid({ codec: 'hevc', crf: 28, scale: '1080p', audioBitrateKbps: 96 }),
     imagePresetId: 'img-avif-max',
@@ -212,6 +228,9 @@ export const GOALS: Goal[] = [
     id: 'goal-discord',
     name: 'Discord (under 10 MB)',
     description: 'Every photo and video fits Discord’s free 10 MB upload limit.',
+    photos: 'Every photo fits Discord’s free 10 MB upload limit.',
+    videos: 'Every video fits Discord’s free 10 MB upload limit. Videos are made 720p so they fit.',
+    simple: true,
     image: img({ mode: 'targetSize', targetMaxSizeBytes: 8 * MB }),
     video: vid({ rateControl: 'targetSize', targetMaxSizeBytes: 10 * MB, scale: '720p', fpsLimit: 30, audioBitrateKbps: 96 }),
     videoPresetId: 'vid-discord-10',
@@ -220,6 +239,9 @@ export const GOALS: Goal[] = [
     id: 'goal-email',
     name: 'Email (under 20 MB)',
     description: 'Photos under 2 MB and videos under 20 MB, small enough to attach to an email.',
+    photos: 'Every photo comes out under 2 MB, small enough to attach to an email.',
+    videos: 'Every video comes out under 20 MB at 720p, small enough to attach to an email.',
+    simple: true,
     image: img({ mode: 'targetSize', targetMaxSizeBytes: 2 * MB }),
     video: vid({ rateControl: 'targetSize', targetMaxSizeBytes: 20 * MB, scale: '720p', fpsLimit: 30, audioBitrateKbps: 96, downmixStereo: true }),
     imagePresetId: 'img-under-2mb',
@@ -229,8 +251,18 @@ export const GOALS: Goal[] = [
     id: 'goal-quality',
     name: 'Best quality',
     description: 'Photos keep every pixel and videos stay close to the original. Saves less space.',
+    photos: 'Photos keep every pixel exactly. Saves less space.',
+    videos: 'Videos stay very close to the original. Saves less space and takes longer.',
+    simple: true,
     image: img({ mode: 'lossless' }),
     video: vid({ codec: 'hevc', crf: 20, preset: 'slow', audioCodec: 'copy' }),
     imagePresetId: 'img-lossless',
   },
 ]
+
+/** Describe a goal for what is in the queue: photos only, videos only, or both. */
+export function goalDescription(goal: Goal, has: { photos: boolean; videos: boolean }): string {
+  if (has.photos && !has.videos) return goal.photos
+  if (has.videos && !has.photos) return goal.videos
+  return goal.description
+}

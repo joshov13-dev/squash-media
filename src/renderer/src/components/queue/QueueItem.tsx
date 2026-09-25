@@ -45,19 +45,20 @@ function PlanLine({ job }: { job: MediaJob }) {
   )
 }
 
-function StatusLine({ job }: { job: MediaJob }) {
+function StatusLine({ job, simple }: { job: MediaJob; simple: boolean }) {
   const p = job.progress
   switch (job.status) {
     case 'pending':
-      return <PlanLine job={job} />
+      return simple ? <span className="text-ink-3">Ready</span> : <PlanLine job={job} />
     case 'queued':
       return <span className="text-ink-3">Waiting in line</span>
     case 'analyzing':
     case 'processing': {
       const bits: string[] = [`${Math.floor(p.percent)}%`]
       if (p.phase) bits.push(p.phase)
-      if (p.currentFps) bits.push(`${Math.round(p.currentFps)} fps`)
-      if (p.currentSpeed) bits.push(`${p.currentSpeed.toFixed(2)}×`)
+      // Frame rates and encode speed mean nothing to most people.
+      if (p.currentFps && !simple) bits.push(`${Math.round(p.currentFps)} fps`)
+      if (p.currentSpeed && !simple) bits.push(`${p.currentSpeed.toFixed(2)}×`)
       return (
         <div className="w-full space-y-1.5 pt-1">
           <ProgressBar value={p.percent} />
@@ -104,6 +105,7 @@ export const QueueItem = memo(function QueueItem({ job, selected }: { job: Media
   const retry = useQueue((s) => s.retry)
   const cancel = useQueue((s) => s.cancel)
   const copyReport = useQueue((s) => s.copyReport)
+  const simple = useSettings((s) => s.view === 'simple')
   const active = ACTIVE.includes(job.status)
 
   return (
@@ -128,7 +130,7 @@ export const QueueItem = memo(function QueueItem({ job, selected }: { job: Media
           <Outcome job={job} />
         </div>
         <span className="num truncate text-ink-3">{describeSource(job)}</span>
-        <StatusLine job={job} />
+        <StatusLine job={job} simple={simple} />
       </div>
       <div
         className={cn(

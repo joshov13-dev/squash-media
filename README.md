@@ -81,6 +81,19 @@ You can turn the checks off, or check straight away, in **Settings** > **Updates
 
 ## Compress your first files
 
+### Simple or Normal view
+
+The first time SquashForge opens, it asks how much you want to see.
+
+![The welcome box, asking you to choose between Simple and Normal view.](docs/screenshots/choose-view.png)
+
+- **Simple** is for getting files smaller without thinking about settings. You pick what the files are for (email, sharing online, Discord and so on), pick where the new files go, and press the big **Compress** button.
+- **Normal** adds the before and after comparison, every photo and video setting, presets, video trimming and file naming. The steps below describe Normal view.
+
+![Simple view with two photos added. On the right: what the photos are for, where the new files go, and a Compress button.](docs/screenshots/simple-view.png)
+
+You can switch whenever you like. Use the link under the settings on the right, or **Settings** > **General** > **View**.
+
 ### 1. Add your files
 
 Drag photos or videos from File Explorer (Finder on a Mac) onto the SquashForge window. You can drag a whole folder too; SquashForge finds every photo and video inside it, including in subfolders. If you prefer buttons, use **Add files** or **Add folder** at the top left.
@@ -113,6 +126,8 @@ The panel on the right opens on the **Quick** tab. Pick what you want from the l
 | Best quality | Nothing may look any different. Saves less space. |
 
 The Quick tab also has **Use my graphics card** (see [below](#lots-of-videos-use-your-graphics-card)) and where to save the new files.
+
+Only the settings that apply are shown. With just photos in the queue, the **Videos** tab and the graphics card switch are hidden, and each choice describes what it does to photos. With just videos, it's the other way round.
 
 Want more control? The **Photos**, **Videos** and **Output** tabs have every setting, and each has its own preset menu at the top:
 

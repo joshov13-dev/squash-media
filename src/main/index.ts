@@ -246,13 +246,20 @@ if (!app.requestSingleInstanceLock()) {
       monitor.start()
     })
 
-    app.on('before-quit', () => {
+    // Hold the quit until History and the log are on disk (at most a moment
+    // and a half), otherwise their last lines can be lost.
+    let quitting = false
+    app.on('before-quit', (e) => {
+      if (quitting) return
+      quitting = true
       logger.info('app', 'Quitting')
       watcher.stop()
-      void history.flush()
-      void flushLogs()
       queue?.cancelAll()
       monitor?.stop()
+      e.preventDefault()
+      const saved = Promise.all([history.flush(), flushLogs()]).catch(() => undefined)
+      const timeout = new Promise((resolve) => setTimeout(resolve, 1500))
+      void Promise.race([saved, timeout]).then(() => app.quit())
     })
 
     app.on('activate', () => {
