@@ -162,7 +162,7 @@ describe('buildVideoArgs', () => {
     expect(after(a, '-crf')).toBe('20')
     expect(after(a, '-vf')).toBe('fps=30,scale=1920:1080:flags=lanczos')
     expect(after(a, '-pix_fmt')).toBe('yuv420p')
-    expect(after(a, '-movflags')).toBe('+faststart')
+    expect(after(a, '-movflags')).toBe('+faststart+use_metadata_tags')
     expect(a.at(-1)).toBe('/out.mp4')
     expect(after(a, '-progress')).toBe('pipe:1')
   })

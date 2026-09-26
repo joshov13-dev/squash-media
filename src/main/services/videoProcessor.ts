@@ -416,7 +416,10 @@ export function buildVideoArgs(input: BuildArgsInput): string[] {
   if (analysis || !input.output) {
     args.push('-f', 'null', '-')
   } else {
-    if (config.container === 'mp4') args.push('-movflags', '+faststart')
+    // +use_metadata_tags: some FFmpeg builds otherwise drop creation_time
+    // from MP4 output, since it isn't one of the handful of tags the mov
+    // muxer writes by default.
+    if (config.container === 'mp4') args.push('-movflags', '+faststart+use_metadata_tags')
     args.push('-f', MUXERS[config.container], input.output)
   }
   return args
