@@ -22,6 +22,7 @@ It does the job of two well-known free tools in one window: Caesium for photos a
 - [Something went wrong](#something-went-wrong)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [For developers](#for-developers)
+- [Legal](#legal)
 
 ## Install it
 
@@ -581,6 +582,48 @@ build/installer.nsh            adds the right-click menu and Send to entry on Wi
 
 The build uses [electron-vite](https://electron-vite.org), so its config is `electron.vite.config.ts`. Packaging settings are in `electron-builder.json5`.
 
-## Licences
+## Legal
 
-SquashMedia is MIT licensed. It ships FFmpeg as separate programs, with FFmpeg's licence in the `bin` folder inside the app's resources: the GPL builds from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) on Windows and Linux, and [Martin Riedl's static builds](https://ffmpeg.martin-riedl.de) on macOS. FFmpeg's source code is available from those projects and from [ffmpeg.org](https://ffmpeg.org).
+### Licence
+
+SquashMedia itself is [MIT licensed](LICENSE): free to use, copy, modify and redistribute, with no warranty. See the next section for what that means in practice.
+
+### Disclaimer
+
+SquashMedia is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement. This is a free, community-maintained tool, not a commercial product with a support contract, service level agreement, or guarantee of ongoing maintenance behind it — there is no obligation to keep developing it, fix any particular bug, or respond to any particular issue within any particular time.
+
+To the fullest extent permitted by law, the author and contributors accept no liability for any claim, damages, or other liability, whether in an action of contract, tort (including negligence) or otherwise, arising from, out of, or in connection with SquashMedia or its use — including, but not limited to, corrupted, lost, or unexpectedly overwritten photos and videos, or any direct, indirect, incidental, special, consequential or exemplary damages, even if advised of the possibility of such damages. By downloading or using SquashMedia, you agree to indemnify and hold harmless the author and contributors from any claim, loss or expense (including reasonable legal costs) arising from your use or misuse of it. Nothing in this disclaimer excludes or limits liability that cannot lawfully be excluded or limited, such as liability for death or personal injury caused by negligence, or for fraud.
+
+SquashMedia goes out of its way to avoid overwriting your originals by default (see [History and undo](#history-and-undo)) and never touches a file without your say-so, but you use it entirely at your own risk. **Always keep your own backups of anything irreplaceable before compressing it.**
+
+This disclaimer, and use of SquashMedia generally, is governed by the law of England and Wales, and the courts of England and Wales have exclusive jurisdiction over any dispute arising from it — without prejudice to any statutory right you may have to bring proceedings in your own country of residence. If any part of this disclaimer is found unenforceable, the rest continues to apply. "SquashMedia" and any associated names or logos in this repository are not registered trademarks and are used here only to identify the project; this is not affiliated with, and makes no claim of affiliation with, any similarly named product.
+
+This section is a plain-language summary written by the project's maintainer with AI assistance, not a substitute for professional legal advice — if you need a guarantee about how enforceable it is, or you're distributing SquashMedia commercially, get your own solicitor to check it.
+
+### Privacy & data
+
+SquashMedia does not have a server, an account system, or an internet connection it needs to work. Every photo and video is read, compressed and written back to disk entirely on your own computer: nothing is uploaded, copied, or sent anywhere else, and the people who make SquashMedia never see your files or know they exist. The only network requests the app makes are the optional, one-off checks described below — never anything involving your media:
+
+- **Update checks** (can be turned off in Settings > Updates): a request to GitHub to see whether a newer version exists.
+- **Watch folders and AI-app integrations**: still entirely local. The MCP server (see [Let an AI app do it for you](#let-an-ai-app-do-it-for-you)) only talks to AI apps running on your own machine over your local machine's own connection, never over the internet.
+
+SquashMedia removes each photo's EXIF metadata (camera model, GPS location) and a video's GPS location by default, since that is often personal information you did not mean to share when sending a compressed file to someone else; the [settings](#what-the-settings-mean) let you keep it if you'd rather. Logs written to your machine for troubleshooting (see Settings > Logs) stay on your machine and are never transmitted anywhere; you choose if and when to share them, for example when reporting a problem.
+
+### Third-party notices
+
+SquashMedia is written in TypeScript on [Electron](https://www.electronjs.org) (MIT), which itself bundles Chromium and Node.js under their own licences — the full text for those is included alongside the app in every installed copy (`LICENSE` and `LICENSES.chromium.html` in the app's resources). It uses, among others:
+
+- [sharp](https://github.com/lovell/sharp) (Apache-2.0) for photo compression, which loads prebuilt [libvips](https://github.com/libvips/libvips) binaries (LGPL-3.0-or-later) at runtime rather than linking them into SquashMedia itself.
+- [FFmpeg](https://ffmpeg.org) (GPL-3.0) for video compression and HEIC decoding, run as a separate program rather than linked into SquashMedia's own code. It ships as separate executables, with FFmpeg's own licence text included in the `bin` folder inside the app's resources: the GPL builds from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) on Windows and Linux, and [Martin Riedl's static builds](https://ffmpeg.martin-riedl.de) on macOS. FFmpeg's source code is available from those projects and from [ffmpeg.org](https://ffmpeg.org).
+- [React](https://react.dev), [Zustand](https://github.com/pmndrs/zustand), [Radix UI](https://www.radix-ui.com), [Tailwind CSS](https://tailwindcss.com) and [Lucide](https://lucide.dev) (MIT/ISC) for the interface.
+- [electron-updater](https://www.electron.build) and [systeminformation](https://systeminformation.io) (MIT) for updates and hardware detection.
+
+The full list of packages and their licences is in `package.json` and each package's own files under `node_modules`; running `npx license-checker --summary` from a checkout lists them all in one place. The complete text of the GPL-3.0, LGPL-3.0 and Apache-2.0 licences that apply to the components above is reproduced in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+
+### Security
+
+Found a security issue rather than a regular bug? Please see [`SECURITY.md`](SECURITY.md) rather than opening a public issue.
+
+### Contributions
+
+By submitting a pull request or other contribution to this repository, you agree that it is provided under the same [MIT Licence](LICENSE) as the rest of the project, and that you have the right to submit it under that licence.
