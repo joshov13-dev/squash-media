@@ -16,9 +16,9 @@ export async function moveToTrash(path: string): Promise<void> {
   if (process.platform === 'win32') {
     // The path goes in through the environment, so no quoting can break it.
     const script =
-      "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($env:SQF_TRASH_PATH, 'OnlyErrorDialogs', 'SendToRecycleBin')"
+      "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($env:SQM_TRASH_PATH, 'OnlyErrorDialogs', 'SendToRecycleBin')"
     const { code, stderr } = await runProcess('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-      env: { ...process.env, SQF_TRASH_PATH: path },
+      env: { ...process.env, SQM_TRASH_PATH: path },
       timeoutMs: 60_000,
     })
     if (code !== 0 || existsSync(path)) throw new Error(`Could not move ${basename(path)} to the Recycle Bin: ${stderr.trim()}`)
@@ -237,7 +237,7 @@ export async function putBack(hit: TrashHit, to: string): Promise<void> {
     // The bin can be on another disk from the destination folder (rare).
     if ((e as NodeJS.ErrnoException).code !== 'EXDEV') throw e
     const { copyFile } = await import('node:fs/promises')
-    const temp = join(dirname(to), `.${basename(to)}.sqf-${randomUUID().slice(0, 8)}.tmp`)
+    const temp = join(dirname(to), `.${basename(to)}.sqm-${randomUUID().slice(0, 8)}.tmp`)
     await copyFile(hit.location, temp)
     await rename(temp, to)
     await rm(hit.location, { force: true })

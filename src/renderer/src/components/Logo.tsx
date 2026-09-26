@@ -1,4 +1,4 @@
-/** Two press plates flattening a block: the SquashForge mark. */
+/** Two press plates flattening a block: the SquashMedia mark. */
 export function Logo({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">

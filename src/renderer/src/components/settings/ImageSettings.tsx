@@ -6,7 +6,7 @@ import { Field, NumberInput, Section, Segmented, Select, Slider, Toggle } from '
 import { SettingsHeader } from './SettingsHeader'
 
 const QUALITY_HINTS: Record<ImageJobConfig['format'], string> = {
-  original: 'Applies each format’s own quality scale. Around 80 is visually lossless for most photos.',
+  original: 'Applies each format’s own quality scale. Around 80 is hard to tell from the original for most photos.',
   jpeg: 'MozJPEG. 75 to 85 is the sweet spot; artefacts creep in below 60.',
   png: 'Reduces the colour palette, like TinyPNG. Great for graphics and screenshots.',
   webp: 'WebP is roughly 30% smaller than JPEG at the same quality.',

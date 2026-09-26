@@ -1,10 +1,10 @@
-// SquashForge on the command line, and the MCP server for AI apps.
+// SquashMedia on the command line, and the MCP server for AI apps.
 //
-// Runs as plain Node inside the SquashForge executable (ELECTRON_RUN_AS_NODE=1),
-// so no window opens. The squashforge / squashforge.cmd launcher sets that up.
+// Runs as plain Node inside the SquashMedia executable (ELECTRON_RUN_AS_NODE=1),
+// so no window opens. The squashmedia / squashmedia.cmd launcher sets that up.
 
 // sharp warns that Electron's Linux build may not match its binaries;
-// SquashForge ships the matching ones, so the note is just noise. This has to
+// SquashMedia ships the matching ones, so the note is just noise. This has to
 // be in place before sharp loads, hence the dynamic import below.
 const emit = process.emitWarning.bind(process)
 process.emitWarning = ((warning: string | Error, ...rest: unknown[]) => {

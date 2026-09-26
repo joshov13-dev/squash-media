@@ -16,6 +16,9 @@ import type { AppPreferences, ImageJobConfig, OutputSettings, VideoJobConfig } f
 
 export type SettingsTab = 'quick' | 'image' | 'video' | 'output'
 
+/** Simple shows a few plain choices. Normal shows the comparison and every setting. */
+export type ViewMode = 'simple' | 'normal'
+
 interface SettingsState {
   image: ImageJobConfig
   video: VideoJobConfig
@@ -28,6 +31,8 @@ interface SettingsState {
   /** The Quick tab goal the shared settings came from. Null once edited by hand. */
   goalId: string | null
   preferences: AppPreferences
+  /** Null until the person picks one on first launch. */
+  view: ViewMode | null
 
   setImage: (patch: Partial<ImageJobConfig>) => void
   setImageResize: (patch: Partial<ImageJobConfig['resize']>) => void
@@ -44,7 +49,8 @@ interface SettingsState {
   resetOutput: () => void
   applyGoal: (goal: Goal) => void
   setPreferences: (patch: Partial<AppPreferences>) => void
-  /** Everything back to how it was on first launch. Saved presets are kept. */
+  setView: (view: ViewMode) => void
+  /** Everything back to how it was on first launch. Saved presets and the view are kept. */
   resetAll: () => void
 }
 
@@ -78,14 +84,16 @@ export const useSettings = create<SettingsState>()(
       tab: 'quick',
       goalId: GOALS[0].id,
       preferences: DEFAULT_PREFERENCES,
+      view: null,
 
       setImage: (patch) => set((s) => ({ image: { ...s.image, ...patch }, imagePresetId: null, goalId: null })),
       setImageResize: (patch) =>
         set((s) => ({ image: { ...s.image, resize: { ...s.image.resize, ...patch } }, imagePresetId: null, goalId: null })),
       setVideo: (patch) =>
         set((s) => {
-          // Switching between the graphics card and the CPU is not a change of goal.
-          const onlyEncoder = Object.keys(patch).every((k) => k === 'encoderMode')
+          // Switching between the graphics card and the CPU, or keeping the
+          // location, is not a change of goal.
+          const onlyEncoder = Object.keys(patch).every((k) => k === 'encoderMode' || k === 'keepLocation')
           return {
             video: normaliseVideo(s.video, { ...s.video, ...patch }),
             videoPresetId: onlyEncoder ? s.videoPresetId : null,
@@ -99,7 +107,7 @@ export const useSettings = create<SettingsState>()(
       applyVideoPreset: (preset) =>
         set((s) => ({
           // Keep the GPU choice: presets describe the result, not the hardware.
-          video: normaliseVideo(s.video, { ...preset.config, encoderMode: s.video.encoderMode }),
+          video: normaliseVideo(s.video, { ...preset.config, encoderMode: s.video.encoderMode, keepLocation: s.video.keepLocation }),
           videoPresetId: preset.id,
           goalId: null,
         })),
@@ -121,17 +129,22 @@ export const useSettings = create<SettingsState>()(
         })),
       setTab: (tab) => set({ tab }),
       resetImage: () => set({ image: DEFAULT_IMAGE_CONFIG, imagePresetId: IMAGE_PRESETS[0].id }),
-      resetVideo: () => set((s) => ({ video: { ...DEFAULT_VIDEO_CONFIG, encoderMode: s.video.encoderMode }, videoPresetId: VIDEO_PRESETS[0].id })),
+      resetVideo: () =>
+        set((s) => ({
+          video: { ...DEFAULT_VIDEO_CONFIG, encoderMode: s.video.encoderMode, keepLocation: s.video.keepLocation },
+          videoPresetId: VIDEO_PRESETS[0].id,
+        })),
       resetOutput: () => set({ output: DEFAULT_OUTPUT }),
       applyGoal: (goal) =>
         set((s) => ({
           image: { ...goal.image, resize: { ...goal.image.resize } },
-          video: normaliseVideo(s.video, { ...goal.video, encoderMode: s.video.encoderMode }),
+          video: normaliseVideo(s.video, { ...goal.video, encoderMode: s.video.encoderMode, keepLocation: s.video.keepLocation }),
           imagePresetId: goal.imagePresetId ?? null,
           videoPresetId: goal.videoPresetId ?? null,
           goalId: goal.id,
         })),
       setPreferences: (patch) => set((s) => ({ preferences: { ...s.preferences, ...patch } })),
+      setView: (view) => set({ view }),
       resetAll: () =>
         set({
           image: DEFAULT_IMAGE_CONFIG,
@@ -145,7 +158,7 @@ export const useSettings = create<SettingsState>()(
         }),
     }),
     {
-      name: 'squashforge-settings',
+      name: 'squashmedia-settings',
       version: 3,
       // Version 1 defaulted videos to the CPU. "Auto" uses the graphics card
       // when there is one, and still falls back to the CPU when there is not.

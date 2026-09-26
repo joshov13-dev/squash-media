@@ -87,7 +87,7 @@ describe('output paths', () => {
   })
 
   it('puts temp files next to the output', () => {
-    expect(tempPathFor(join('/x', 'y.mp4'), 'abcdef123456')).toBe(join('/x', '.y.mp4.sqf-abcdef12.tmp'))
+    expect(tempPathFor(join('/x', 'y.mp4'), 'abcdef123456')).toBe(join('/x', '.y.mp4.sqm-abcdef12.tmp'))
   })
 })
 
@@ -180,11 +180,13 @@ describe('JobQueue', () => {
     expect(u.note).toBe('Already compressed earlier')
     expect(await readFile(earlier)).toEqual(before)
 
-    // With the option off, the earlier output is replaced.
+    // With the option off, a new copy is made alongside; the earlier one is never written over.
     const again = harness()
     await again.queue.enqueue([await imageJob(src, 's2', DEFAULT_OUTPUT)])
-    expect((await again.waitFor(['s2'])).get('s2')!.status).toBe('completed')
-    expect(await readFile(earlier)).not.toEqual(before)
+    const u2 = (await again.waitFor(['s2'])).get('s2')!
+    expect(u2.status).toBe('completed')
+    expect(u2.outputPath).toBe(join(dir, 'done_compressed (2).png'))
+    expect(await readFile(earlier)).toEqual(before)
   })
 
   it('keeps videos that are already under the target size', async () => {
@@ -291,6 +293,9 @@ describe('output naming in a run', () => {
     expect(friendlyError(new Error("EBUSY: resource busy or locked, rename 'x'")).message).toMatch(/Another program/)
     expect(friendlyError(new Error('ENOSPC: no space left on device')).message).toMatch(/disk is full/)
     expect(friendlyError(new Error('OpenEncodeSessionEx failed: unsupported device (2)')).message).toMatch(/NVIDIA/)
+    expect(friendlyError(new Error('spawn /opt/x/ffmpeg ENOENT')).message).toMatch(/Reinstall/)
+    expect(friendlyError(new Error('ffmpeg: error while loading shared libraries: libva.so.2')).message).toMatch(/missing or damaged/)
+    expect(friendlyError(new Error('spawn C:\\x\\ffprobe.exe EACCES')).message).toMatch(/missing or damaged/)
     const odd = friendlyError(new Error('weird thing'))
     expect(odd.message).toContain('weird thing')
     expect(odd.detail).toBe('weird thing')

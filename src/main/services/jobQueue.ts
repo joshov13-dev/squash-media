@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
+import { constants as fsConstants } from 'node:fs'
 import { copyFile, mkdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import type { Stats } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
@@ -13,7 +14,6 @@ import type {
   JobRequest,
   JobStatus,
   JobUpdate,
-  OutputSettings,
   ProgressStatus,
   QueueStats,
   RunOrigin,
@@ -254,9 +254,15 @@ export class JobQueue {
     }
     const temp = tempPathFor(plan.finalPath, req.id)
     await mkdir(dirname(plan.finalPath), { recursive: true })
-    await writeFile(temp, result.data)
-    const { note, replaced } = await this.commit(temp, plan, req.filePath, sourceStat, req.output)
-    this.complete(item, result.data.length, plan.finalPath, [result.note, note].filter(Boolean).join(' · ') || undefined, replaced)
+    try {
+      await writeFile(temp, result.data)
+      const { note, replaced, finalPath } = await this.commit(item, temp, plan, sourceStat)
+      this.complete(item, result.data.length, finalPath, [result.note, note].filter(Boolean).join(' · ') || undefined, replaced)
+    } catch (e) {
+      // A half-written temp file (say the disk filled up) must not be left behind.
+      await rm(temp, { force: true }).catch(() => undefined)
+      throw e
+    }
   }
 
   private async runVideo(item: QueueItem): Promise<void> {
@@ -316,8 +322,8 @@ export class JobQueue {
         await this.keepOriginal(item, sourceStat, 'Original kept: compressed file was larger')
         return
       }
-      const { note, replaced } = await this.commit(temp, plan, req.filePath, sourceStat, req.output)
-      this.complete(item, result.bytes, plan.finalPath, [...result.notes, note].filter(Boolean).join(' · ') || undefined, replaced)
+      const { note, replaced, finalPath } = await this.commit(item, temp, plan, sourceStat)
+      this.complete(item, result.bytes, finalPath, [...result.notes, note].filter(Boolean).join(' · ') || undefined, replaced)
     } catch (e) {
       await rm(temp, { force: true }).catch(() => undefined)
       throw e
@@ -345,12 +351,19 @@ export class JobQueue {
     return process.platform === 'win32' || process.platform === 'darwin' ? p.toLowerCase() : p
   }
 
-  /** Reserve the output path for this run, numbering it if another job has it. */
+  /**
+   * A name for the output that is free: not handed to another job in this run,
+   * and not a file already on disk. The only file ever written over is the
+   * job's own source, in Replace mode (after it has gone to the bin).
+   */
+  private freePath(item: QueueItem, plan: OutputPlan): string {
+    if (plan.replacesSource && samePath(plan.finalPath, item.req.filePath)) return plan.finalPath
+    return uniquePath(plan.finalPath, (p) => this.claimed.has(this.pathKey(p)) || existsSync(p))
+  }
+
+  /** Reserve the output path for this run, numbering it if the name is taken. */
   private claim(item: QueueItem, plan: OutputPlan): OutputPlan {
-    // Replacing the source itself is always allowed.
-    const finalPath = samePath(plan.finalPath, item.req.filePath)
-      ? plan.finalPath
-      : uniquePath(plan.finalPath, (p) => this.claimed.has(this.pathKey(p)))
+    const finalPath = this.freePath(item, plan)
     this.claimed.add(this.pathKey(finalPath))
     item.claimedPath = finalPath
     return { ...plan, finalPath }
@@ -365,13 +378,16 @@ export class JobQueue {
    * Move the temp file into place. Returns a note if something needs saying,
    * and whether the original went to the bin.
    */
-  private async commit(
-    temp: string,
-    plan: OutputPlan,
-    source: string,
-    sourceStat: Stats,
-    output: OutputSettings,
-  ): Promise<{ note?: string; replaced: boolean }> {
+  private async commit(item: QueueItem, temp: string, claimed: OutputPlan, sourceStat: Stats): Promise<{ note?: string; replaced: boolean; finalPath: string }> {
+    const source = item.req.filePath
+    const output = item.req.output
+    // Something may have appeared at the claimed name while this job ran (the
+    // command line and the app can run at once). Rename would replace it.
+    let plan = claimed
+    if (existsSync(plan.finalPath) && !(plan.replacesSource && samePath(plan.finalPath, source))) {
+      this.release(item)
+      plan = this.claim(item, plan)
+    }
     let note: string | undefined
     let replaced = false
     if (plan.replacesSource) {
@@ -391,7 +407,7 @@ export class JobQueue {
     if (output.preserveTimestamps) {
       await utimes(plan.finalPath, sourceStat.atime, sourceStat.mtime).catch(() => undefined)
     }
-    return { note, replaced }
+    return { note, replaced, finalPath: plan.finalPath }
   }
 
   private record(item: QueueItem, output: string, outputBytes: number, replaced: boolean, copied = false): void {
@@ -419,10 +435,14 @@ export class JobQueue {
     // In folder mode the destination should still end up with every file.
     if (req.output.mode === 'folder' && req.output.folder) {
       const folder = req.output.keepFolderStructure && req.relativeDir ? join(req.output.folder, req.relativeDir) : req.output.folder
-      const dest = join(folder, basename(req.filePath))
-      if (!samePath(dest, req.filePath)) {
+      const natural = join(folder, basename(req.filePath))
+      if (!samePath(natural, req.filePath)) {
+        // The name reserved for the compressed file is not needed now.
+        this.release(item)
+        const dest = this.claim(item, { finalPath: natural, replacesSource: false }).finalPath
         await mkdir(folder, { recursive: true })
-        await copyFile(req.filePath, dest)
+        // EXCL: never replace a file that turned up there in the meantime.
+        await copyFile(req.filePath, dest, fsConstants.COPYFILE_EXCL)
         if (req.output.preserveTimestamps) await utimes(dest, sourceStat.atime, sourceStat.mtime).catch(() => undefined)
         outputPath = dest
         this.record(item, dest, req.sizeBytes, false, true)

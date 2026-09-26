@@ -1,4 +1,4 @@
-// The commands behind squashforge compress / inspect / info / history / undo / mcp.
+// The commands behind squashmedia compress / inspect / info / history / undo / mcp.
 import { isAbsolute, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { formatBytes, formatDuration } from '@shared/format'
@@ -17,16 +17,16 @@ import {
 import { flushLogs, listLogFiles, logFilePath, logger, readRecentLog } from '../logger'
 import { serveStdio } from '../mcp/server'
 
-const HELP = `SquashForge ${__APP_VERSION__}: compress photos and videos
+const HELP = `SquashMedia ${__APP_VERSION__}: compress photos and videos
 
 Usage:
-  squashforge compress <files or folders...> [options]
-  squashforge inspect <files or folders...>     Show sizes, resolutions and durations
-  squashforge info                              This computer's CPU, graphics card and goals
-  squashforge history [--limit 10]              Recent runs
-  squashforge undo <run id>                     Undo a run (copies to the bin, originals back)
-  squashforge logs [--lines 200] [--path]       Recent log entries, for reporting a problem
-  squashforge mcp                               Run the MCP server for AI apps (stdio)
+  squashmedia compress <files or folders...> [options]
+  squashmedia inspect <files or folders...>     Show sizes, resolutions and durations
+  squashmedia info                              This computer's CPU, graphics card and goals
+  squashmedia history [--limit 10]              Recent runs
+  squashmedia undo <run id>                     Undo a run (copies to the bin, originals back)
+  squashmedia logs [--lines 200] [--path]       Recent log entries, for reporting a problem
+  squashmedia mcp                               Run the MCP server for AI apps (stdio)
 
 Compress options:
   -g, --goal <goal>         ${GOALS.map(goalShortName).join(', ')} (default: smaller)
@@ -41,7 +41,7 @@ Compress options:
   -q, --quality <1-100>     Photo quality
       --max-size <px>       Longest side in pixels
       --lossless            Keep every pixel
-      --keep-metadata       Keep EXIF (camera, date, location)
+      --keep-metadata       Keep photo EXIF (camera, date, location) and video location
 
   Videos:
       --codec <codec>       h264, hevc, av1 or vp9
@@ -63,10 +63,10 @@ Compress options:
       --path                 Print the log file's path instead
 
 Examples:
-  squashforge compress "C:\\Users\\Sam\\Pictures\\Holiday"
-  squashforge compress clip.mov --goal discord
-  squashforge compress ~/Videos --resolution 1080p --out ~/Videos/small
-  squashforge compress *.png --format webp --quality 80
+  squashmedia compress "C:\\Users\\Sam\\Pictures\\Holiday"
+  squashmedia compress clip.mov --goal discord
+  squashmedia compress ~/Videos --resolution 1080p --out ~/Videos/small
+  squashmedia compress *.png --format webp --quality 80
 `
 
 class UsageError extends Error {}
@@ -114,6 +114,7 @@ function compressOptions(v: Record<string, string | boolean | undefined>): Compr
       resolution: v.resolution as VideoOptions['resolution'],
       max_fps: num('fps'),
       audio: v['no-audio'] ? 'none' : undefined,
+      keep_location: v['keep-metadata'] ? true : undefined,
       encoder: v.encoder as VideoOptions['encoder'],
       target_size: v.target as string | undefined,
     },
@@ -242,7 +243,7 @@ async function info(json: boolean): Promise<number> {
     out(JSON.stringify({ version: __APP_VERSION__, hardware: hw, goals: GOALS.map((g) => ({ goal: goalShortName(g), name: g.name, description: g.description })) }, null, 2))
     return 0
   }
-  out(`SquashForge ${__APP_VERSION__}`)
+  out(`SquashMedia ${__APP_VERSION__}`)
   out(`CPU:       ${hw.cpuModel} (${hw.logicalCores} threads)`)
   out(`Graphics:  ${hw.gpus.map((g) => g.model).join(', ') || 'none found'}`)
   out(`GPU video: ${hw.availableGpuEncoders.join(', ') || 'none, videos use the CPU'}`)
@@ -269,7 +270,7 @@ async function history(limit: number, json: boolean): Promise<number> {
 }
 
 async function undo(runId: string | undefined): Promise<number> {
-  if (!runId) throw new UsageError('Give the run id from "squashforge history"')
+  if (!runId) throw new UsageError('Give the run id from "squashmedia history"')
   const engine = new Engine('cli')
   const results = await engine.history.undoRun(runId)
   await engine.history.flush()
@@ -355,7 +356,7 @@ async function main(argv: string[]): Promise<number> {
       await serveStdio(new Engine('ai'))
       return 0
     default:
-      throw new UsageError(`Unknown command "${command}". Try "squashforge help".`)
+      throw new UsageError(`Unknown command "${command}". Try "squashmedia help".`)
   }
 }
 
@@ -365,7 +366,7 @@ export function run(argv: string[]): void {
     async (e) => {
       if (e instanceof UsageError || e instanceof OptionError || (e as NodeJS.ErrnoException).code?.startsWith?.('ERR_PARSE_ARGS')) {
         err(e.message)
-        err('Try "squashforge help".')
+        err('Try "squashmedia help".')
         process.exit(2)
       }
       logger.error('cli', 'Command failed', e)

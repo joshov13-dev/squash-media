@@ -101,7 +101,7 @@ export interface SquashApi {
   onWatchStatus(cb: (status: WatchStatus[]) => void): Unsubscribe
   /** New files in a watched folder, once they have finished being written. */
   onWatchFound(cb: (found: { watchId: string; paths: string[] }) => void): Unsubscribe
-  /** Whether SquashForge starts (minimised) when the user signs in. Null where not supported. */
+  /** Whether SquashMedia starts (minimised) when the user signs in. Null where not supported. */
   getLoginItem(): Promise<boolean | null>
   setLoginItem(open: boolean): Promise<void>
   getUpdateState(): Promise<UpdateState>
@@ -109,10 +109,10 @@ export interface SquashApi {
   /** Restart into a downloaded update, or open the download page. */
   installUpdate(): Promise<void>
   onUpdateState(cb: (state: UpdateState) => void): Unsubscribe
-  /** AI apps found on this computer and whether SquashForge is connected to them. */
+  /** AI apps found on this computer and whether SquashMedia is connected to them. */
   getIntegrations(): Promise<IntegrationsInfo>
   connectAiApp(id: string, connect: boolean): Promise<IntegrationResult>
-  /** Install the "squashforge" terminal command. */
+  /** Install the "squashmedia" terminal command. */
   installCommand(): Promise<IntegrationResult>
   /** The recent log text, for "Copy the log". */
   getLogText(): Promise<string>

@@ -29,6 +29,9 @@ describe('name templates', () => {
     expect(looksLikeOutput('2025-01-02 beach', '{date} {name}')).toBe(true)
     expect(looksLikeOutput('beach', '{date} {name}')).toBe(false)
     expect(looksLikeOutput('small-012', '{name}-{n}')).toBe(true)
+    // Numbered when the name was already taken.
+    expect(looksLikeOutput('beach_compressed (2)', '{name}_compressed')).toBe(true)
+    expect(looksLikeOutput('beach (2)', '{name}_compressed')).toBe(false)
     // Too broad to be useful.
     expect(looksLikeOutput('anything', '{name}')).toBe(false)
     expect(looksLikeOutput('2025-01-02', '{date}')).toBe(false)

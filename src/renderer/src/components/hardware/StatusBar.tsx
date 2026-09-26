@@ -16,7 +16,8 @@ function Reading({ label, value }: { label: string; value: number | null }) {
   )
 }
 
-export function StatusBar() {
+/** Machine readings on the left, progress on the right. Simple view leaves out the readings. */
+export function StatusBar({ simple = false }: { simple?: boolean }) {
   const load = useSystem((s) => s.load)
   const hw = useSystem((s) => s.hardware)
   const stats = useSystem((s) => s.stats)
@@ -32,16 +33,27 @@ export function StatusBar() {
 
   return (
     <footer className="flex h-8 shrink-0 items-center gap-5 bg-ground px-3 text-[12px]">
-      <HardwarePopover>
-        <button type="button" className="flex h-6 max-w-[240px] items-center gap-1.5 rounded px-1.5 text-ink-2 hover:bg-raised hover:text-ink">
-          <Cpu size={13} strokeWidth={1.75} className="shrink-0" />
-          <span className="truncate">{hw ? hw.cpuModel.replace(/\(R\)|\(TM\)|®|™|CPU|Processor/gi, '').replace(/\s+/g, ' ').trim() : 'Detecting...'}</span>
-        </button>
-      </HardwarePopover>
-      <Reading label="CPU" value={load?.cpuPercent ?? null} />
-      {hasGpu && <Reading label="GPU" value={load!.gpuPercent} />}
-      {hasGpu && load!.gpuEncoderPercent !== null && <Reading label="Encoder" value={load!.gpuEncoderPercent} />}
-      <Reading label="RAM" value={load?.memoryPercent ?? null} />
+      {!simple && (
+        <>
+          <HardwarePopover>
+            <button type="button" className="flex h-6 max-w-[240px] items-center gap-1.5 rounded px-1.5 text-ink-2 hover:bg-raised hover:text-ink">
+              <Cpu size={13} strokeWidth={1.75} className="shrink-0" />
+              <span className="truncate">
+                {hw
+                  ? hw.cpuModel
+                      .replace(/\(R\)|\(TM\)|®|™|CPU|Processor/gi, '')
+                      .replace(/\s+/g, ' ')
+                      .trim()
+                  : 'Detecting...'}
+              </span>
+            </button>
+          </HardwarePopover>
+          <Reading label="CPU" value={load?.cpuPercent ?? null} />
+          {hasGpu && <Reading label="GPU" value={load!.gpuPercent} />}
+          {hasGpu && load!.gpuEncoderPercent !== null && <Reading label="Encoder" value={load!.gpuEncoderPercent} />}
+          <Reading label="RAM" value={load?.memoryPercent ?? null} />
+        </>
+      )}
 
       <div className="flex-1" />
 

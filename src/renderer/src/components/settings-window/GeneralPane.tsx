@@ -27,6 +27,8 @@ export function GeneralPane() {
   const prefs = useSettings((s) => s.preferences)
   const set = useSettings((s) => s.setPreferences)
   const nameTemplate = useSettings((s) => s.output.nameTemplate)
+  const view = useSettings((s) => s.view)
+  const setView = useSettings((s) => s.setView)
   const hw = useSystem((s) => s.hardware)
   const [logPath, setLogPath] = useState<string | null>(null)
 
@@ -40,6 +42,26 @@ export function GeneralPane() {
 
   return (
     <div className="space-y-7">
+      <Group title="Layout">
+        <Field
+          label="View"
+          hint={
+            view === 'simple'
+              ? 'Simple shows a few plain choices: what the files are for, and where they go.'
+              : 'Normal shows the before and after comparison and every photo and video setting.'
+          }
+        >
+          <Segmented
+            value={view ?? 'normal'}
+            onChange={setView}
+            options={[
+              { value: 'simple', label: 'Simple' },
+              { value: 'normal', label: 'Normal' },
+            ]}
+          />
+        </Field>
+      </Group>
+
       <Group title="Speed">
         <p className="rounded-lg bg-hover px-3 py-2.5 text-[12px] leading-relaxed text-ink-2">
           {hasGpu
@@ -111,7 +133,7 @@ export function GeneralPane() {
         />
         <Toggle
           label="Show a notification when it finishes"
-          hint="Only when SquashForge is not the window you are using."
+          hint="Only when SquashMedia is not the window you are using."
           checked={prefs.notifyWhenDone}
           onChange={(notifyWhenDone) => set({ notifyWhenDone })}
         />
@@ -125,7 +147,7 @@ export function GeneralPane() {
 
       <Group title="Diagnostics">
         <p className="text-[12px] leading-relaxed text-ink-3">
-          SquashForge keeps a log of what it does: files compressed, problems, and settings changes. Run something, then copy the log here to
+          SquashMedia keeps a log of what it does: files compressed, problems, and settings changes. Run something, then copy the log here to
           share it. It includes file names and paths, but never the files themselves.
         </p>
         <div className="flex flex-wrap items-center gap-2">

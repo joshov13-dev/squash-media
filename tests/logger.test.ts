@@ -17,7 +17,7 @@ describe('logger', () => {
   let dir: string
 
   beforeEach(async () => {
-    dir = await tempDir('sqf-logs-')
+    dir = await tempDir('sqm-logs-')
     useLogsDir(dir)
     setVerboseLogging(false)
   })
@@ -64,7 +64,7 @@ describe('logger', () => {
   })
 
   it('deletes files older than the retention window', async () => {
-    const old = join(dir, 'squashforge-2000-01-01.log')
+    const old = join(dir, 'squashmedia-2000-01-01.log')
     await writeFile(old, 'ancient\n')
     const oldDate = new Date(2000, 0, 1)
     await utimes(old, oldDate, oldDate)
@@ -110,12 +110,12 @@ describe('logger', () => {
   })
 
   it('lists files oldest first and ignores files that are not logs', async () => {
-    await writeFile(join(dir, 'squashforge-2020-05-01.log'), '')
-    await writeFile(join(dir, 'squashforge-2021-05-01.log'), '')
+    await writeFile(join(dir, 'squashmedia-2020-05-01.log'), '')
+    await writeFile(join(dir, 'squashmedia-2021-05-01.log'), '')
     await writeFile(join(dir, 'readme.txt'), '')
     expect((await listLogFiles()).map((f) => f.split(/[\\/]/).pop())).toEqual([
-      'squashforge-2020-05-01.log',
-      'squashforge-2021-05-01.log',
+      'squashmedia-2020-05-01.log',
+      'squashmedia-2021-05-01.log',
     ])
     // Confirm nothing outside the dir helper leaked through.
     expect((await readdir(dir)).length).toBeGreaterThanOrEqual(3)

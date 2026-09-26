@@ -1,9 +1,10 @@
 import { Check, FolderOpen } from 'lucide-react'
 import { ENCODER_LABELS, pickEncoderMode } from '@shared/codecs'
-import { GOALS } from '@shared/presets'
+import { goalDescription, GOALS } from '@shared/presets'
 import { api } from '@renderer/lib/api'
 import { cn } from '@renderer/lib/cn'
-import { useSettings } from '@renderer/store/settingsStore'
+import { useQueueKinds } from '@renderer/store/queueStore'
+import { useSettings, type SettingsTab } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
 import { whereFilesGo } from '../HelpPopover'
 import { Button, Section, Segmented, Toggle } from '../ui/controls'
@@ -17,7 +18,11 @@ export function QuickSettings() {
   const output = useSettings((s) => s.output)
   const setOutput = useSettings((s) => s.setOutput)
   const setTab = useSettings((s) => s.setTab)
+  const setView = useSettings((s) => s.setView)
   const hw = useSystem((s) => s.hardware)
+  const kinds = useQueueKinds()
+  const showVideos = kinds.videos || !kinds.photos
+  const showPhotos = kinds.photos || !kinds.videos
 
   const supported = hw?.encoderSupport[video.codec] ?? ['cpu']
   const gpu = pickEncoderMode('auto', video.codec, supported)
@@ -49,7 +54,7 @@ export function QuickSettings() {
                 <Check size={14} strokeWidth={2.25} className={cn('mt-0.5 shrink-0 text-ember', !active && 'invisible')} />
                 <span className="min-w-0">
                   <span className="block font-medium text-ink">{goal.name}</span>
-                  <span className="block text-[12px] leading-snug text-ink-3">{goal.description}</span>
+                  <span className="block text-[12px] leading-snug text-ink-3">{goalDescription(goal, kinds)}</span>
                 </span>
               </button>
             )
@@ -62,21 +67,23 @@ export function QuickSettings() {
         )}
       </Section>
 
-      <Section title="Videos">
-        <Toggle
-          label="Use my graphics card"
-          hint={
-            gpu !== 'cpu'
-              ? `Found ${ENCODER_LABELS[gpu]}. Videos finish many times faster; files come out a little bigger.`
-              : hw
-                ? 'No graphics card that can encode video was found, so videos use the processor.'
-                : 'Checking this PC...'
-          }
-          checked={usingGpu}
-          disabled={gpu === 'cpu'}
-          onChange={(on) => setVideo({ encoderMode: on ? 'auto' : 'cpu' })}
-        />
-      </Section>
+      {showVideos && (
+        <Section title="Videos">
+          <Toggle
+            label="Use my graphics card"
+            hint={
+              gpu !== 'cpu'
+                ? `Found ${ENCODER_LABELS[gpu]}. Videos finish many times faster; files come out a little bigger.`
+                : hw
+                  ? 'No graphics card that can encode video was found, so videos use the processor.'
+                  : 'Checking this PC...'
+            }
+            checked={usingGpu}
+            disabled={gpu === 'cpu'}
+            onChange={(on) => setVideo({ encoderMode: on ? 'auto' : 'cpu' })}
+          />
+        </Section>
+      )}
 
       <Section title="Save to">
         <Segmented
@@ -104,21 +111,44 @@ export function QuickSettings() {
         <p className="text-[12px] leading-snug text-ink-3">{whereFilesGo(output)}</p>
       </Section>
 
-      <p className="px-4 pt-1 text-[12px] leading-relaxed text-ink-3">
-        Want more control? The{' '}
-        <button type="button" onClick={() => setTab('image')} className="text-ink-2 underline decoration-ink-3 underline-offset-2 hover:text-ink">
-          Photos
-        </button>
-        ,{' '}
-        <button type="button" onClick={() => setTab('video')} className="text-ink-2 underline decoration-ink-3 underline-offset-2 hover:text-ink">
-          Videos
-        </button>{' '}
-        and{' '}
-        <button type="button" onClick={() => setTab('output')} className="text-ink-2 underline decoration-ink-3 underline-offset-2 hover:text-ink">
-          Output
-        </button>{' '}
-        tabs have every setting.
-      </p>
+      <div className="space-y-2 px-4 pt-1 text-[12px] leading-relaxed text-ink-3">
+        <p>
+          Want more control?{' '}
+          <TabLinks tabs={[...(showPhotos ? (['image'] as const) : []), ...(showVideos ? (['video'] as const) : []), 'output']} onPick={setTab} />{' '}
+          have every setting.
+        </p>
+        <p>
+          Prefer fewer choices?{' '}
+          <button type="button" onClick={() => setView('simple')} className={LINK}>
+            Switch to Simple view
+          </button>
+        </p>
+      </div>
     </div>
+  )
+}
+
+const LINK = 'text-ink-2 underline decoration-ink-3 underline-offset-2 hover:text-ink'
+const TAB_NAMES: Record<Exclude<SettingsTab, 'quick'>, string> = {
+  image: 'Photos',
+  video: 'Videos',
+  output: 'Output',
+}
+
+/** "The Photos, Videos and Output tabs", each name a link to its tab. */
+function TabLinks({ tabs, onPick }: { tabs: ReadonlyArray<Exclude<SettingsTab, 'quick'>>; onPick: (tab: SettingsTab) => void }) {
+  return (
+    <>
+      The{' '}
+      {tabs.map((t, i) => (
+        <span key={t}>
+          {i > 0 && (i === tabs.length - 1 ? ' and ' : ', ')}
+          <button type="button" onClick={() => onPick(t)} className={LINK}>
+            {TAB_NAMES[t]}
+          </button>
+        </span>
+      ))}{' '}
+      tabs
+    </>
   )
 }

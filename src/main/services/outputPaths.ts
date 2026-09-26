@@ -89,5 +89,5 @@ export function uniquePath(path: string, taken: (candidate: string) => boolean):
 
 /** Hidden temp file next to the final output so the last step is a same-volume rename. */
 export function tempPathFor(finalPath: string, jobId: string): string {
-  return join(dirname(finalPath), `.${basename(finalPath)}.sqf-${jobId.slice(0, 8)}.tmp`)
+  return join(dirname(finalPath), `.${basename(finalPath)}.sqm-${jobId.slice(0, 8)}.tmp`)
 }

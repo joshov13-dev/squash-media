@@ -7,6 +7,8 @@ import { StatusBar } from './components/hardware/StatusBar'
 import { PreviewPanel } from './components/preview/PreviewPanel'
 import { QueuePanel } from './components/queue/QueuePanel'
 import { SettingsPanel } from './components/settings/SettingsPanel'
+import { SimplePanel } from './components/simple/SimplePanel'
+import { ViewChooser } from './components/simple/ViewChooser'
 import { useQueue } from './store/queueStore'
 import { useSettings } from './store/settingsStore'
 import { useSystem } from './store/systemStore'
@@ -114,19 +116,30 @@ export function App() {
   useBridge()
   useShortcuts()
   const dropping = useFileDrop()
+  const simple = useSettings((s) => s.view === 'simple')
 
   return (
     <Tooltip.Provider delayDuration={400} skipDelayDuration={200}>
       <div className="flex h-full flex-col">
         <TopBar />
         <div className="flex min-h-0 flex-1 gap-px bg-ground">
-          <QueuePanel />
-          <PreviewPanel />
-          <SettingsPanel />
+          {simple ? (
+            <>
+              <QueuePanel wide />
+              <SimplePanel />
+            </>
+          ) : (
+            <>
+              <QueuePanel />
+              <PreviewPanel />
+              <SettingsPanel />
+            </>
+          )}
         </div>
-        <StatusBar />
+        <StatusBar simple={simple} />
       </div>
       <PowerCountdown />
+      <ViewChooser />
       {dropping && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-ground/80">
           <div className="rounded-2xl bg-raised px-10 py-8 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]">

@@ -1,7 +1,8 @@
 import { FolderPlus, Play, Plus, RotateCw, Square } from 'lucide-react'
 import { api } from '@renderer/lib/api'
 import { cn } from '@renderer/lib/cn'
-import { ACTIVE, useQueue } from '@renderer/store/queueStore'
+import { useQueue, useRunState } from '@renderer/store/queueStore'
+import { useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
 import { HelpPopover } from './HelpPopover'
 import { HistoryDialog } from './HistoryDialog'
@@ -10,15 +11,14 @@ import { SettingsDialog } from './settings-window/SettingsDialog'
 import { Button, Tip } from './ui/controls'
 
 export function TopBar() {
-  const jobs = useQueue((s) => s.jobs)
   const start = useQueue((s) => s.start)
   const stopAll = useQueue((s) => s.stopAll)
   const addPaths = useQueue((s) => s.addPaths)
-  const active = useSystem((s) => s.stats?.active ?? false)
   const update = useSystem((s) => s.update)
-  const running = active || jobs.some((j) => ACTIVE.includes(j.status))
-  const runnable = jobs.filter((j) => j.status === 'pending' || j.status === 'failed' || j.status === 'cancelled').length
+  const { running, runnable } = useRunState()
   const isMac = api.platform === 'darwin'
+  // Simple view has its own big Compress button beside the choices.
+  const simple = useSettings((s) => s.view === 'simple')
 
   const addFiles = async (): Promise<void> => {
     const paths = await api.pickFiles()
@@ -33,7 +33,7 @@ export function TopBar() {
     <header className={cn('drag flex h-11 shrink-0 items-center gap-2 bg-ground', isMac ? 'pr-3 pl-20' : 'pr-[148px] pl-3')}>
       <div className="flex items-center gap-2 pr-3">
         <Logo />
-        <span className="font-display text-[14px] font-semibold tracking-[-0.01em] text-ink">SquashForge</span>
+        <span className="font-display text-[14px] font-semibold tracking-[-0.01em] text-ink">SquashMedia</span>
       </div>
       <Button onClick={addFiles}>
         <Plus size={15} strokeWidth={2} />
@@ -45,7 +45,7 @@ export function TopBar() {
       </Button>
       <div className="flex-1" />
       {update?.state === 'ready' && !running && (
-        <Tip label={`Version ${update.version} has downloaded. Restart SquashForge to start using it.`}>
+        <Tip label={`Version ${update.version} has downloaded. Restart SquashMedia to start using it.`}>
           <span className="no-drag">
             <Button variant="plain" onClick={() => void api.installUpdate()} className="text-ember hover:text-ember">
               <RotateCw size={14} /> Restart to update
@@ -56,7 +56,7 @@ export function TopBar() {
       <HistoryDialog />
       <SettingsDialog />
       <HelpPopover />
-      {running ? (
+      {simple ? null : running ? (
         <Button variant="danger" onClick={stopAll}>
           <Square size={12} strokeWidth={2.5} />
           Stop all

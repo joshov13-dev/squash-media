@@ -3,7 +3,7 @@
 // up half-written. Files already in the folder when watching starts are left
 // alone.
 import { watch, type FSWatcher } from 'node:fs'
-import { open, stat } from 'node:fs/promises'
+import { open, readdir, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type { WatchFolder, WatchStatus } from '@shared/types'
 import { classifyPath } from './services/mediaResolver'
@@ -28,9 +28,12 @@ export interface WatcherOptions {
 }
 
 /** Skip our own temp files, hidden files and system clutter. */
+const SEED_MAX_DEPTH = 8
+const SEED_SKIP_DIRS = new Set(['node_modules', '__pycache__', 'System Volume Information'])
+
 export function isCandidate(path: string): boolean {
   const name = basename(path)
-  if (name.startsWith('.') || name.startsWith('~$') || name.includes('.sqf-')) return false
+  if (name.startsWith('.') || name.startsWith('~$') || name.includes('.sqm-')) return false
   if (/\.(tmp|part|crdownload|download)$/i.test(name)) return false
   return classifyPath(path) !== null
 }
@@ -40,6 +43,9 @@ export class FolderWatcher {
   private pending = new Map<string, Pending>()
   /** Paths already reported, so edits and our own renames do not repeat them. */
   private reported = new Set<string>()
+  /** Watch IDs still taking their initial snapshot; events for them are queued, not acted on. */
+  private seeding = new Set<string>()
+  private queuedDuringSeed = new Map<string, string[]>()
   private timer: NodeJS.Timeout | null = null
   private retryTimer: NodeJS.Timeout | null = null
   private readonly pollMs: number
@@ -58,6 +64,8 @@ export class FolderWatcher {
       if (!next || next.path !== w.folder.path) {
         w.fsw?.close()
         this.watchers.delete(id)
+        this.seeding.delete(id)
+        this.queuedDuringSeed.delete(id)
       } else {
         w.folder = next
       }
@@ -66,7 +74,7 @@ export class FolderWatcher {
     this.emitStatus()
   }
 
-  /** Paths SquashForge writes itself are never picked up as new. */
+  /** Paths SquashMedia writes itself are never picked up as new. */
   ignore(path: string): void {
     this.reported.add(this.key(path))
   }
@@ -75,6 +83,8 @@ export class FolderWatcher {
     for (const w of this.watchers.values()) w.fsw?.close()
     this.watchers.clear()
     this.pending.clear()
+    this.seeding.clear()
+    this.queuedDuringSeed.clear()
     if (this.timer) clearInterval(this.timer)
     if (this.retryTimer) clearInterval(this.retryTimer)
     this.timer = this.retryTimer = null
@@ -92,9 +102,21 @@ export class FolderWatcher {
     const entry: { folder: WatchFolder; fsw: FSWatcher | null; error?: string } = { folder, fsw: null }
     this.watchers.set(folder.id, entry)
     try {
+      this.seeding.add(folder.id)
       const fsw = watch(folder.path, { recursive: true, persistent: false }, (_event, filename) => {
         if (!filename) return
-        this.seen(folder.id, join(folder.path, filename.toString()))
+        const path = join(folder.path, filename.toString())
+        // The initial snapshot below is still running: an event this early
+        // could be for a file that was already there before watching
+        // started (seen on macOS, and under load on other platforms too),
+        // so it is held until the snapshot says whether that's the case.
+        if (this.seeding.has(folder.id)) {
+          const q = this.queuedDuringSeed.get(folder.id) ?? []
+          q.push(path)
+          this.queuedDuringSeed.set(folder.id, q)
+          return
+        }
+        this.seen(folder.id, path)
       })
       fsw.on('error', (e) => {
         fsw.close()
@@ -105,6 +127,17 @@ export class FolderWatcher {
       })
       entry.fsw = fsw
       entry.error = undefined
+      // Take stock of what's already there so it can never be picked up as
+      // new. On macOS in particular, a recursive fs.watch can still report
+      // an event for a file that changed just before watching started (it
+      // catches up on the OS's very recent change history), so a fresh
+      // event alone is not proof a file is actually new.
+      void this.seedExisting(folder.path).then(() => {
+        this.seeding.delete(folder.id)
+        const queued = this.queuedDuringSeed.get(folder.id) ?? []
+        this.queuedDuringSeed.delete(folder.id)
+        for (const path of queued) this.seen(folder.id, path)
+      })
     } catch (e) {
       entry.error = friendly(e)
       this.scheduleRetry()
@@ -129,6 +162,28 @@ export class FolderWatcher {
     }, 30_000)
   }
 
+  /** List candidate files already in a folder, so start() can mark them known. */
+  private async seedExisting(root: string, depth = 0): Promise<void> {
+    if (depth > SEED_MAX_DEPTH) return
+    let entries
+    try {
+      entries = await readdir(root, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const path = join(root, entry.name)
+      if (entry.isDirectory()) {
+        if (!SEED_SKIP_DIRS.has(entry.name)) void this.seedExisting(path, depth + 1)
+        continue
+      }
+      if (!entry.isFile() || !isCandidate(path)) continue
+      const key = this.key(path)
+      this.reported.add(key)
+      this.pending.delete(key)
+    }
+  }
+
   private seen(watchId: string, path: string): void {
     if (!isCandidate(path)) return
     const key = this.key(path)
@@ -140,7 +195,7 @@ export class FolderWatcher {
   private async poll(): Promise<void> {
     const ready = new Map<string, string[]>()
     for (const [key, p] of [...this.pending]) {
-      // Written by SquashForge while it waited.
+      // Written by SquashMedia while it waited.
       if (this.reported.has(key)) {
         this.pending.delete(key)
         continue
@@ -186,6 +241,6 @@ async function readable(path: string): Promise<boolean> {
 function friendly(e: unknown): string {
   const code = (e as NodeJS.ErrnoException).code
   if (code === 'ENOENT') return 'The folder could not be found. Is the drive plugged in?'
-  if (code === 'EACCES' || code === 'EPERM') return 'SquashForge is not allowed to read this folder.'
+  if (code === 'EACCES' || code === 'EPERM') return 'SquashMedia is not allowed to read this folder.'
   return e instanceof Error ? e.message : String(e)
 }

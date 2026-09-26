@@ -131,11 +131,11 @@ export function WatchPane() {
 
       <Group title="Keep it running">
         <p className="text-[12px] leading-relaxed text-ink-3">
-          Watching only happens while SquashForge is open. Minimised is fine.
+          Watching only happens while SquashMedia is open. Minimised is fine.
         </p>
         {login !== null && (
           <Toggle
-            label="Open SquashForge when I sign in"
+            label="Open SquashMedia when I sign in"
             hint="It starts minimised, so watched folders keep working after a restart."
             checked={login}
             onChange={(open) => {

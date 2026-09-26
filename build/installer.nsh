@@ -1,20 +1,20 @@
-; Windows Explorer integration for the SquashForge installer.
-; Adds "Compress with SquashForge" to the right-click menu of photos, videos
-; and folders, and puts SquashForge in the "Send to" menu. On Windows 11 the
+; Windows Explorer integration for the SquashMedia installer.
+; Adds "Compress with SquashMedia" to the right-click menu of photos, videos
+; and folders, and puts SquashMedia in the "Send to" menu. On Windows 11 the
 ; right-click entry sits under "Show more options".
 
-!macro SquashForgeVerbAdd EXT
-  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\${EXT}\shell\SquashForge" "" "Compress with SquashForge"
-  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\${EXT}\shell\SquashForge" "Icon" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}",0'
-  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\${EXT}\shell\SquashForge\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
+!macro SquashMediaVerbAdd EXT
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\${EXT}\shell\SquashMedia" "" "Compress with SquashMedia"
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\${EXT}\shell\SquashMedia" "Icon" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}",0'
+  WriteRegStr SHCTX "Software\Classes\SystemFileAssociations\${EXT}\shell\SquashMedia\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
 !macroend
 
-!macro SquashForgeVerbRemove EXT
-  DeleteRegKey SHCTX "Software\Classes\SystemFileAssociations\${EXT}\shell\SquashForge"
+!macro SquashMediaVerbRemove EXT
+  DeleteRegKey SHCTX "Software\Classes\SystemFileAssociations\${EXT}\shell\SquashMedia"
 !macroend
 
-; Every extension SquashForge opens, apart from ".ts" (TypeScript shares it).
-!macro SquashForgeEachExtension MACRO
+; Every extension SquashMedia opens, apart from ".ts" (TypeScript shares it).
+!macro SquashMediaEachExtension MACRO
   !insertmacro ${MACRO} ".jpg"
   !insertmacro ${MACRO} ".jpeg"
   !insertmacro ${MACRO} ".jfif"
@@ -43,21 +43,21 @@
 !macroend
 
 !macro customInstall
-  !insertmacro SquashForgeEachExtension SquashForgeVerbAdd
-  WriteRegStr SHCTX "Software\Classes\Directory\shell\SquashForge" "" "Compress with SquashForge"
-  WriteRegStr SHCTX "Software\Classes\Directory\shell\SquashForge" "Icon" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}",0'
-  WriteRegStr SHCTX "Software\Classes\Directory\shell\SquashForge\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
-  CreateShortCut "$SENDTO\SquashForge.lnk" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+  !insertmacro SquashMediaEachExtension SquashMediaVerbAdd
+  WriteRegStr SHCTX "Software\Classes\Directory\shell\SquashMedia" "" "Compress with SquashMedia"
+  WriteRegStr SHCTX "Software\Classes\Directory\shell\SquashMedia" "Icon" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}",0'
+  WriteRegStr SHCTX "Software\Classes\Directory\shell\SquashMedia\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
+  CreateShortCut "$SENDTO\SquashMedia.lnk" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
 !macroend
 
 !macro customUnInstall
-  !insertmacro SquashForgeEachExtension SquashForgeVerbRemove
-  DeleteRegKey SHCTX "Software\Classes\Directory\shell\SquashForge"
-  Delete "$SENDTO\SquashForge.lnk"
-  ; The "squashforge" command, if it was installed from Settings. Updates run
+  !insertmacro SquashMediaEachExtension SquashMediaVerbRemove
+  DeleteRegKey SHCTX "Software\Classes\Directory\shell\SquashMedia"
+  Delete "$SENDTO\SquashMedia.lnk"
+  ; The "squashmedia" command, if it was installed from Settings. Updates run
   ; the old uninstaller too, so leave it alone then.
   ${IfNot} ${isUpdated}
-    RMDir /r "$LOCALAPPDATA\SquashForge\bin"
-    nsExec::Exec `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$d=[Environment]::GetFolderPath('LocalApplicationData')+'\SquashForge\bin'; $$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$$true); $$p=[string]$$k.GetValue('Path','','DoNotExpandEnvironmentNames'); $$n=(@($$p -split ';' | Where-Object { $$_ -and ($$_.TrimEnd('\') -ne $$d) }) -join ';'); if ($$n -ne $$p) { $$k.SetValue('Path',$$n,'ExpandString') }"`
+    RMDir /r "$LOCALAPPDATA\SquashMedia\bin"
+    nsExec::Exec `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$d=[Environment]::GetFolderPath('LocalApplicationData')+'\SquashMedia\bin'; $$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$$true); $$p=[string]$$k.GetValue('Path','','DoNotExpandEnvironmentNames'); $$n=(@($$p -split ';' | Where-Object { $$_ -and ($$_.TrimEnd('\') -ne $$d) }) -join ';'); if ($$n -ne $$p) { $$k.SetValue('Path',$$n,'ExpandString') }"`
   ${EndIf}
 !macroend

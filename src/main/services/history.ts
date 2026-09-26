@@ -1,4 +1,4 @@
-// A record of every file SquashForge has written, shared by the app, the
+// A record of every file SquashMedia has written, shared by the app, the
 // command line and the AI server, so any run can be undone later.
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'

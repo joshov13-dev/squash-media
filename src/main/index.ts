@@ -80,7 +80,7 @@ function notifyFinished(win: BrowserWindow, stats: QueueStats): void {
   ]
     .filter(Boolean)
     .join(' ')
-  const note = new Notification({ title: stats.failed ? 'SquashForge finished with problems' : 'SquashForge is done', body })
+  const note = new Notification({ title: stats.failed ? 'SquashMedia finished with problems' : 'SquashMedia is done', body })
   note.on('click', () => {
     win.show()
     win.focus()
@@ -97,7 +97,7 @@ function createWindow(): void {
     minHeight: 680,
     show: false,
     backgroundColor: BACKGROUND,
-    title: 'SquashForge',
+    title: 'SquashMedia',
     autoHideMenuBar: true,
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     ...(isMac ? {} : { titleBarOverlay: { color: BACKGROUND, symbolColor: '#aca69c', height: 44 } }),
@@ -120,7 +120,7 @@ function createWindow(): void {
     if (!queue?.busy || !mainWindow || !getPreferences().confirmQuit) return
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: 'warning',
-      title: 'SquashForge is still working',
+      title: 'SquashMedia is still working',
       message: 'Files are still being compressed.',
       detail: 'If you quit now, the files being worked on are stopped and not saved. Files that already finished are kept.',
       buttons: ['Keep working', 'Stop and quit'],
@@ -152,7 +152,7 @@ function createWindow(): void {
 }
 
 // One settings folder for the app, the command line and the AI server.
-// SQUASHFORGE_USER_DATA picks a separate one, for testing or running side by side.
+// SQUASHMEDIA_USER_DATA picks a separate one, for testing or running side by side.
 app.setPath('userData', userDataDir())
 
 if (!app.requestSingleInstanceLock()) {
@@ -167,10 +167,10 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   void app.whenReady().then(() => {
-    app.setAppUserModelId('com.squashforge.app')
+    app.setAppUserModelId('com.squashmedia.app')
 
     usePreferencesFile(userDataFile('preferences.json'))
-    logger.info('app', 'SquashForge started', {
+    logger.info('app', 'SquashMedia started', {
       version: app.getVersion(),
       platform: process.platform,
       arch: process.arch,
@@ -246,13 +246,20 @@ if (!app.requestSingleInstanceLock()) {
       monitor.start()
     })
 
-    app.on('before-quit', () => {
+    // Hold the quit until History and the log are on disk (at most a moment
+    // and a half), otherwise their last lines can be lost.
+    let quitting = false
+    app.on('before-quit', (e) => {
+      if (quitting) return
+      quitting = true
       logger.info('app', 'Quitting')
       watcher.stop()
-      void history.flush()
-      void flushLogs()
       queue?.cancelAll()
       monitor?.stop()
+      e.preventDefault()
+      const saved = Promise.all([history.flush(), flushLogs()]).catch(() => undefined)
+      const timeout = new Promise((resolve) => setTimeout(resolve, 1500))
+      void Promise.race([saved, timeout]).then(() => app.quit())
     })
 
     app.on('activate', () => {

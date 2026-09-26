@@ -12,7 +12,7 @@ interface ReportContext {
 function systemLines(ctx: ReportContext): string[] {
   const hw = ctx.hardware
   return [
-    `SquashForge ${ctx.app?.version ?? '?'} on ${ctx.app?.platform ?? navigator.platform}`,
+    `SquashMedia ${ctx.app?.version ?? '?'} on ${ctx.app?.platform ?? navigator.platform}`,
     hw ? `CPU: ${hw.cpuModel} (${hw.logicalCores} threads)` : '',
     hw?.gpus.length ? `Graphics: ${hw.gpus.map((g) => g.model).join(', ')}` : '',
     hw ? `FFmpeg: ${hw.ffmpegVersion ?? 'not found'} · GPU encoders: ${hw.availableGpuEncoders.join(', ') || 'none'}` : '',
@@ -36,5 +36,5 @@ function jobLines(job: MediaJob, ctx: ReportContext): string[] {
  */
 export function problemReport(jobs: MediaJob[], ctx: ReportContext): string {
   const sections = jobs.map((j) => jobLines(j, ctx).join('\n'))
-  return ['SquashForge problem report', ...systemLines(ctx), '', ...sections.flatMap((s) => [s, ''])].join('\n').trim() + '\n'
+  return ['SquashMedia problem report', ...systemLines(ctx), '', ...sections.flatMap((s) => [s, ''])].join('\n').trim() + '\n'
 }

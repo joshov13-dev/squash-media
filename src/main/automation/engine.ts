@@ -2,6 +2,7 @@
 // the MCP server that AI apps talk to. Runs batches on the same queue, ETA
 // model and history as the app.
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { resolveImageFormat } from '@shared/codecs'
 import { formatBytes, formatEta } from '@shared/format'
 import type { HardwareProfile, ImageInfo, JobRequest, JobStatus, JobUpdate, MediaFile, ResolveResult, RunOrigin } from '@shared/types'
@@ -13,7 +14,7 @@ import { CalibrationStore } from '../services/etaCalculator'
 import { HistoryStore } from '../services/history'
 import { JobQueue } from '../services/jobQueue'
 import { resolveMedia } from '../services/mediaResolver'
-import { imageOutputExtension, planOutputPath, videoOutputExtension } from '../services/outputPaths'
+import { imageOutputExtension, planOutputPath, samePath, uniquePath, videoOutputExtension } from '../services/outputPaths'
 import { moveToTrash } from '../trash'
 import type { ResolvedOptions } from './options'
 
@@ -132,17 +133,23 @@ export class Engine {
   async plan(files: MediaFile[], o: ResolvedOptions): Promise<{ files: PlannedFile[]; estimated_seconds: number; estimate: string }> {
     const reqs = this.requests(files, o)
     const { perFile, total } = await this.queue.estimate(reqs)
+    // Number clashing names the way a real run does, so the plan matches what gets written.
+    const taken = new Set<string>()
+    const key = (p: string): string => (process.platform === 'win32' || process.platform === 'darwin' ? p.toLowerCase() : p)
     const planned = reqs.map((r, i): PlannedFile => {
       const ext =
         r.type === 'image'
           ? imageOutputExtension(r.filePath, (r.info as ImageInfo).format, resolveImageFormat(o.image.format, (r.info as ImageInfo).format))
           : videoOutputExtension(o.video.container)
       const out = planOutputPath(r.filePath, ext, o.output, r.relativeDir, { index: i + 1 })
+      const own = out.replacesSource && samePath(out.finalPath, r.filePath)
+      const output = own ? out.finalPath : uniquePath(out.finalPath, (p) => taken.has(key(p)) || existsSync(p))
+      taken.add(key(output))
       return {
         path: r.filePath,
         type: r.type,
         before_bytes: r.sizeBytes,
-        output: out.finalPath,
+        output,
         replaces_original: out.replacesSource,
         estimated_seconds: Math.round(perFile[i]),
       }

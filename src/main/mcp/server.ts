@@ -1,6 +1,6 @@
 // A Model Context Protocol server over stdio, so AI apps on this computer
 // (Claude, Cursor, VS Code, LM Studio and others) can compress files with
-// SquashForge. Messages are newline-delimited JSON-RPC 2.0. Everything
+// SquashMedia. Messages are newline-delimited JSON-RPC 2.0. Everything
 // other than protocol messages goes to stderr.
 import { createInterface } from 'node:readline'
 import { GOALS } from '@shared/presets'
@@ -11,7 +11,7 @@ import { TOOLS, type ToolResult } from './tools'
 
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
 
-export const INSTRUCTIONS = `SquashForge compresses photos and videos on this computer. Nothing is uploaded. Use it when the user wants files smaller: to email or share them, to fit a size limit (Discord, WhatsApp, a website), to free up disk space, or to convert formats (HEIC to JPEG, PNG to WebP, MOV to MP4).
+export const INSTRUCTIONS = `SquashMedia compresses photos and videos on this computer. Nothing is uploaded. Use it when the user wants files smaller: to email or share them, to fit a size limit (Discord, WhatsApp, a website), to free up disk space, or to convert formats (HEIC to JPEG, PNG to WebP, MOV to MP4).
 
 How to use it well:
 1. Paths must be absolute. Folders are searched for photos and videos (up to 8 levels deep).
@@ -58,7 +58,7 @@ export class McpServer {
         return ok({
           protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: 'squashforge', title: 'SquashForge', version: __APP_VERSION__ },
+          serverInfo: { name: 'squashmedia', title: 'SquashMedia', version: __APP_VERSION__ },
           instructions: INSTRUCTIONS,
         })
       }
@@ -98,7 +98,7 @@ export class McpServer {
       return result
     } catch (e) {
       // Problems with the request go back to the model so it can fix them.
-      const message = e instanceof OptionError ? e.message : `SquashForge hit a problem: ${e instanceof Error ? e.message : String(e)}`
+      const message = e instanceof OptionError ? e.message : `SquashMedia hit a problem: ${e instanceof Error ? e.message : String(e)}`
       this.log(`${name} failed: ${e instanceof OptionError ? e.message : e instanceof Error ? e.stack : String(e)}`)
       logger.error('mcp', `${name} failed`, { args, error: e })
       return { content: [{ type: 'text', text: message }], isError: true }
@@ -108,12 +108,12 @@ export class McpServer {
 
 /** Serve on stdin/stdout until the AI app closes the connection. */
 export async function serveStdio(engine: Engine): Promise<void> {
-  const log = (line: string): void => void process.stderr.write(`[squashforge] ${line}\n`)
+  const log = (line: string): void => void process.stderr.write(`[squashmedia] ${line}\n`)
   const server = new McpServer(engine, log)
   const write = (reply: Reply): void => void process.stdout.write(`${JSON.stringify(reply)}\n`)
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity })
   const inflight = new Set<Promise<unknown>>()
-  log(`SquashForge ${__APP_VERSION__} MCP server ready`)
+  log(`SquashMedia ${__APP_VERSION__} MCP server ready`)
   logger.info('mcp', 'MCP server started')
 
   for await (const line of rl) {

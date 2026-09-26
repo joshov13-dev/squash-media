@@ -56,7 +56,7 @@ interface ProbeStream {
 
 interface ProbeJson {
   streams?: ProbeStream[]
-  format?: { format_name?: string; duration?: string; bit_rate?: string }
+  format?: { format_name?: string; duration?: string; bit_rate?: string; tags?: Record<string, string> }
 }
 
 function parseRate(rate: string | undefined): number {
@@ -93,6 +93,9 @@ export function parseProbe(json: ProbeJson): VideoInfo {
   const sideways = Math.abs(rotation) % 180 === 90
   const bitrate = num(json.format?.bit_rate)
   const audioBitrate = num(audio[0]?.bit_rate)
+  // FFmpeg's demuxer exposes this specially; some muxers only write it back
+  // when it is set explicitly, rather than through -map_metadata alone.
+  const creationTime = json.format?.tags?.creation_time ?? video.tags?.creation_time
 
   return {
     kind: 'video',
@@ -111,6 +114,7 @@ export function parseProbe(json: ProbeJson): VideoInfo {
     audioBitrateKbps: audioBitrate ? Math.round(audioBitrate / 1000) : null,
     audioStreams: audio.length,
     subtitleStreams: subs.length,
+    creationTime: creationTime || undefined,
   }
 }
 
@@ -229,6 +233,9 @@ const QSV_PRESET: Record<VideoSpeedPreset, string> = { ultrafast: 'veryfast', fa
 const AMF_QUALITY: Record<VideoSpeedPreset, string> = { ultrafast: 'speed', fast: 'speed', medium: 'balanced', slow: 'quality' }
 
 const MUXERS: Record<VideoContainer, string> = { mp4: 'mp4', mkv: 'matroska', webm: 'webm' }
+
+/** Where phones and cameras put the GPS position in a video's metadata. */
+export const LOCATION_TAGS = ['location', 'location-eng', 'com.apple.quicktime.location.ISO6709']
 
 export interface BuildArgsInput {
   input: string
@@ -378,6 +385,18 @@ export function buildVideoArgs(input: BuildArgsInput): string[] {
   if (!analysis && input.audio !== 'none') args.push('-map', '0:a?')
   if (keepSubs) args.push('-map', '0:s?', '-map', '0:t?', '-c:s', 'copy', '-c:t', 'copy')
   if (!analysis) args.push('-map_metadata', '0', '-map_chapters', '0')
+  // Dates and titles are kept, but where the video was filmed is private.
+  // An empty value removes the tag; these are the names phones use.
+  if (!analysis && !config.keepLocation) {
+    for (const tag of LOCATION_TAGS) args.push('-metadata', `${tag}=`)
+  }
+  // -map_metadata should carry this across on its own, but re-asserting it
+  // explicitly means the recording date survives even on a muxer that does
+  // not otherwise round-trip it. Phones store it on the video stream itself,
+  // not just the container, so it is set in both places.
+  if (!analysis && info.creationTime) {
+    args.push('-metadata', `creation_time=${info.creationTime}`, '-metadata:s:v:0', `creation_time=${info.creationTime}`)
+  }
 
   // Filters: drop frames first, then scale fewer of them.
   const filters: string[] = []
@@ -397,7 +416,10 @@ export function buildVideoArgs(input: BuildArgsInput): string[] {
   if (analysis || !input.output) {
     args.push('-f', 'null', '-')
   } else {
-    if (config.container === 'mp4') args.push('-movflags', '+faststart')
+    // +use_metadata_tags: some FFmpeg builds otherwise drop creation_time
+    // from MP4 output, since it isn't one of the handful of tags the mov
+    // muxer writes by default.
+    if (config.container === 'mp4') args.push('-movflags', '+faststart+use_metadata_tags')
     args.push('-f', MUXERS[config.container], input.output)
   }
   return args
@@ -594,7 +616,7 @@ async function encodeWith(o: EncodeVideoOptions, plan: Attempt, retryingOnCpu: b
     if (bitrate < 150) notes.push(`Very low bitrate (${bitrate} kbps). Try a smaller resolution`)
   }
 
-  const workDir = await mkdtemp(join(os.tmpdir(), 'squashforge-'))
+  const workDir = await mkdtemp(join(os.tmpdir(), 'squashmedia-'))
   let frameSeconds = 0
   let framesDone = 0
   try {
@@ -723,7 +745,7 @@ export async function generateVideoPreview(
   }
   let fallbackNote: string | undefined
 
-  const workDir = await mkdtemp(join(os.tmpdir(), 'squashforge-preview-'))
+  const workDir = await mkdtemp(join(os.tmpdir(), 'squashmedia-preview-'))
   const samplePath = join(workDir, `sample${CONTAINER_EXTENSIONS[config.container]}`)
   try {
     let firstAt = 0

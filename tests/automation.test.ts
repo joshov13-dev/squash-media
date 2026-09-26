@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
+import { readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -49,8 +49,8 @@ describe('MCP server', () => {
   let dir: string
 
   beforeAll(async () => {
-    process.env.SQUASHFORGE_USER_DATA = await tempDir('sqf-mcp-home-')
-    dir = await tempDir('sqf-mcp-')
+    process.env.SQUASHMEDIA_USER_DATA = await tempDir('sqm-mcp-home-')
+    dir = await tempDir('sqm-mcp-')
     for (const [name, colour] of [['one.png', '#2a6'], ['two.png', '#a26']]) {
       await sharp({ create: { width: 800, height: 600, channels: 3, background: colour } })
         .composite([{ input: Buffer.from('<svg width="800" height="600"><rect x="100" y="100" width="300" height="200" fill="#fff"/></svg>') }])
@@ -92,15 +92,34 @@ describe('MCP server', () => {
     expect(done.content[0].text).toMatch(/^Finished: 2 of 2 done/)
     expect((await readdir(dir)).sort()).toEqual(['one.png', 'one_compressed.webp', 'two.png', 'two_compressed.webp'])
 
+    // Running again never writes over the first copies: the new ones are numbered.
+    const firstCopy = await readFile(join(dir, 'one_compressed.webp'))
+    const again = await call('compress_media', { paths: [join(dir, 'one.png')], goal: 'share', photo: { quality: 40 }, wait_seconds: 30 })
+    expect(again.content[0].text).toMatch(/^Finished: 1 of 1 done/)
+    expect(await readFile(join(dir, 'one_compressed.webp'))).toEqual(firstCopy)
+    expect(existsSync(join(dir, 'one_compressed (2).webp'))).toBe(true)
+    await rm(join(dir, 'one_compressed (2).webp'))
+
     const history = await call('list_history', {})
     const runs = (history.structuredContent as { runs: Array<{ run_id: string; source: string; files: number }> }).runs
-    expect(runs[0]).toMatchObject({ source: 'ai', files: 2 })
+    expect(runs.find((r) => r.files === 2)).toMatchObject({ source: 'ai', files: 2 })
   })
 
   it('refuses to replace originals unless confirmed, and reports mistakes to the model', async () => {
+    const before = (await readdir(dir)).sort()
+    const originals = await Promise.all(before.map((f) => readFile(join(dir, f))))
     const replace = await call('compress_media', { paths: [dir], output: { mode: 'replace' } })
     expect(replace.isError).toBe(true)
     expect(replace.content[0].text).toMatch(/confirm_replace_originals/)
+    // Anything but a real true is refused.
+    const sloppy = await call('compress_media', { paths: [dir], output: { mode: 'replace' }, confirm_replace_originals: 'true' })
+    expect(sloppy.isError).toBe(true)
+    // A dry run may describe a replace, but writes and recycles nothing.
+    const dry = await call('compress_media', { paths: [join(dir, 'one.png')], output: { mode: 'replace' }, dry_run: true })
+    expect(dry.isError).toBeFalsy()
+    expect((dry.structuredContent as { files: Array<{ replaces_original: boolean }> }).files[0].replaces_original).toBe(true)
+    expect((await readdir(dir)).sort()).toEqual(before)
+    expect(await Promise.all(before.map((f) => readFile(join(dir, f))))).toEqual(originals)
     const relative = await call('inspect_media', { paths: ['photos/one.png'] })
     expect(relative.isError).toBe(true)
     expect(relative.content[0].text).toMatch(/not an absolute path/)

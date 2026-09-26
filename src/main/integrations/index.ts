@@ -1,4 +1,4 @@
-// Connects SquashForge to AI apps and installs the "squashforge" command.
+// Connects SquashMedia to AI apps and installs the "squashmedia" command.
 import { app } from 'electron'
 import { existsSync } from 'node:fs'
 import { chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -26,19 +26,19 @@ function dirs(): Dirs {
 }
 
 /**
- * How another program starts SquashForge without a window: the app's own
+ * How another program starts SquashMedia without a window: the app's own
  * executable acting as Node, running the bundled command line script.
  * Returns a reason instead when this copy moves around (portable, AppImage).
  */
 export function launchSpec(): { spec: LaunchSpec | null; problem?: string } {
   if (process.env.PORTABLE_EXECUTABLE_DIR) {
-    return { spec: null, problem: 'The portable version unpacks to a new place each time it runs, so AI apps cannot find it. Install SquashForge with the Setup file to use this.' }
+    return { spec: null, problem: 'The portable version unpacks to a new place each time it runs, so AI apps cannot find it. Install SquashMedia with the Setup file to use this.' }
   }
   if (process.env.APPIMAGE) {
     return { spec: null, problem: 'The AppImage moves each time it runs, so AI apps cannot find it. Install the .deb package to use this.' }
   }
   if (process.platform === 'darwin' && process.execPath.startsWith('/Volumes/')) {
-    return { spec: null, problem: 'SquashForge is running from the disk image. Drag it into Applications first, then open it from there.' }
+    return { spec: null, problem: 'SquashMedia is running from the disk image. Drag it into Applications first, then open it from there.' }
   }
   const script = app.isPackaged ? join(process.resourcesPath, 'app.asar', 'out', 'main', 'cli.js') : join(app.getAppPath(), 'out', 'main', 'cli.js')
   return { spec: { command: process.execPath, args: [script, 'mcp'], env: { ELECTRON_RUN_AS_NODE: '1' } } }
@@ -111,7 +111,7 @@ export async function integrationsInfo(): Promise<IntegrationsInfo> {
 
 export async function connectApp(id: string, connect: boolean): Promise<IntegrationResult> {
   const { spec, problem } = launchSpec()
-  if (!spec) return { ok: false, message: problem ?? 'Not available in this copy of SquashForge.' }
+  if (!spec) return { ok: false, message: problem ?? 'Not available in this copy of SquashMedia.' }
   if (id === 'claude-code') {
     claudeCode = null
     // Take out any older entry first, so the paths are always current.
@@ -138,7 +138,7 @@ export async function connectApp(id: string, connect: boolean): Promise<Integrat
     const next = connect ? addServer(text, def.format, spec, def.config) : removeServer(text ?? '', def.format, def.config)
     await mkdir(dirname(def.config), { recursive: true })
     // Keep the user's own copy the first time we touch the file.
-    const backup = `${def.config}.before-squashforge`
+    const backup = `${def.config}.before-squashmedia`
     if (text !== null && !existsSync(backup)) await copyFile(def.config, backup)
     await writeFile(def.config, next)
     return { ok: true, message: connect ? `Added to ${def.name}. ${def.after}` : `Removed from ${def.name}. ${def.after}` }
@@ -148,16 +148,16 @@ export async function connectApp(id: string, connect: boolean): Promise<Integrat
 }
 
 // ---------------------------------------------------------------------------
-// The "squashforge" command
+// The "squashmedia" command
 // ---------------------------------------------------------------------------
 
 function commandTarget(): { dir: string; file: string } {
   if (process.platform === 'win32') {
-    const dir = join(process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local'), 'SquashForge', 'bin')
-    return { dir, file: join(dir, 'squashforge.cmd') }
+    const dir = join(process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local'), 'SquashMedia', 'bin')
+    return { dir, file: join(dir, 'squashmedia.cmd') }
   }
   const dir = join(os.homedir(), '.local', 'bin')
-  return { dir, file: join(dir, 'squashforge') }
+  return { dir, file: join(dir, 'squashmedia') }
 }
 
 function onPath(dir: string): boolean {
@@ -171,15 +171,15 @@ async function addToWindowsPath(dir: string): Promise<void> {
     "$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)",
     "$p = [string]$k.GetValue('Path', '', 'DoNotExpandEnvironmentNames')",
     "$parts = @($p -split ';' | Where-Object { $_ -ne '' })",
-    'if (-not ($parts | Where-Object { $_.TrimEnd(\'\\\') -ieq $env:SQF_DIR })) {',
-    "  $k.SetValue('Path', (($parts + $env:SQF_DIR) -join ';'), [Microsoft.Win32.RegistryValueKind]::ExpandString)",
+    'if (-not ($parts | Where-Object { $_.TrimEnd(\'\\\') -ieq $env:SQM_DIR })) {',
+    "  $k.SetValue('Path', (($parts + $env:SQM_DIR) -join ';'), [Microsoft.Win32.RegistryValueKind]::ExpandString)",
     // Setting any variable through .NET tells open programs that PATH changed.
-    "  [Environment]::SetEnvironmentVariable('SQUASHFORGE_PATH_UPDATED', '1', 'User')",
-    "  [Environment]::SetEnvironmentVariable('SQUASHFORGE_PATH_UPDATED', $null, 'User')",
+    "  [Environment]::SetEnvironmentVariable('SQUASHMEDIA_PATH_UPDATED', '1', 'User')",
+    "  [Environment]::SetEnvironmentVariable('SQUASHMEDIA_PATH_UPDATED', $null, 'User')",
     '}',
   ].join('\n')
   const r = await runProcess('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    env: { ...process.env, SQF_DIR: dir },
+    env: { ...process.env, SQM_DIR: dir },
     timeoutMs: 30_000,
   })
   if (r.code !== 0) throw new Error(r.stderr.trim() || 'PowerShell could not update PATH')
@@ -187,7 +187,7 @@ async function addToWindowsPath(dir: string): Promise<void> {
 
 export async function installCommand(): Promise<IntegrationResult> {
   const { spec, problem } = launchSpec()
-  if (!spec) return { ok: false, message: problem ?? 'Not available in this copy of SquashForge.' }
+  if (!spec) return { ok: false, message: problem ?? 'Not available in this copy of SquashMedia.' }
   const { dir, file } = commandTarget()
   try {
     await mkdir(dir, { recursive: true })
@@ -195,10 +195,10 @@ export async function installCommand(): Promise<IntegrationResult> {
     if (process.platform !== 'win32') await chmod(file, 0o755)
     if (process.platform === 'win32') {
       await addToWindowsPath(dir)
-      return { ok: true, message: 'Installed. Open a new Command Prompt or PowerShell window and type: squashforge help' }
+      return { ok: true, message: 'Installed. Open a new Command Prompt or PowerShell window and type: squashmedia help' }
     }
     return onPath(dir)
-      ? { ok: true, message: 'Installed. Open a new terminal and type: squashforge help' }
+      ? { ok: true, message: 'Installed. Open a new terminal and type: squashmedia help' }
       : {
           ok: true,
           message: `Installed to ${file}. ${dir} is not on your PATH yet: add  export PATH="$HOME/.local/bin:$PATH"  to your shell profile, then open a new terminal.`,

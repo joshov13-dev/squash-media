@@ -33,7 +33,7 @@ function Status() {
         </div>
       )
     case 'ready':
-      return <p className="text-ink">Version {u.version} is ready. It installs when SquashForge restarts.</p>
+      return <p className="text-ink">Version {u.version} is ready. It installs when SquashMedia restarts.</p>
     case 'error':
       return <p className="text-brick">Could not check: {u.error}</p>
     default:
@@ -64,7 +64,7 @@ export function UpdatesPane() {
       <Group title="Updates">
         <div className="space-y-3 rounded-lg bg-hover/50 p-3">
           <p className="num text-[12px] text-ink-3">
-            You have SquashForge {u?.current ?? app?.version}
+            You have SquashMedia {u?.current ?? app?.version}
             {u?.lastChecked ? ` · checked ${new Date(u.lastChecked).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : ''}
           </p>
           <Status />
@@ -94,7 +94,7 @@ export function UpdatesPane() {
           label="Check for updates automatically"
           hint={
             u?.selfUpdate
-              ? 'New versions download in the background and install the next time SquashForge starts.'
+              ? 'New versions download in the background and install the next time SquashMedia starts.'
               : 'You get a note here when there is a new version to download.'
           }
           checked={prefs.checkForUpdates}
@@ -104,7 +104,7 @@ export function UpdatesPane() {
 
       <Group title="About">
         <p className="num text-[12px] text-ink-3">
-          SquashForge {app?.version} · {app?.platform}
+          SquashMedia {app?.version} · {app?.platform}
           {ffmpeg ? ` · FFmpeg ${ffmpeg}` : ''}
         </p>
         <div className="flex flex-wrap gap-2">

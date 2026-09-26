@@ -15,7 +15,7 @@ describe('watch folders', () => {
     expect(isCandidate('/a/clip.mp4')).toBe(true)
     expect(isCandidate('/a/notes.txt')).toBe(false)
     expect(isCandidate('/a/.hidden.jpg')).toBe(false)
-    expect(isCandidate('/a/.photo.webp.sqf-1234abcd.tmp')).toBe(false)
+    expect(isCandidate('/a/.photo.webp.sqm-1234abcd.tmp')).toBe(false)
     expect(isCandidate('/a/video.mp4.crdownload')).toBe(false)
   })
 
@@ -45,6 +45,22 @@ describe('watch folders', () => {
     expect(found).toHaveLength(1)
   })
 
+  it('never reports a file that was already there, even if the OS fires an event for it', async () => {
+    // fs.watch on some platforms can still report an event for a file that
+    // changed just before watching started; a snapshot of what was already
+    // there when watching began must override that.
+    const dir = await tempDir()
+    await writeFile(join(dir, 'old.jpg'), 'existing')
+    const found: string[][] = []
+    watcher = new FolderWatcher({ onFound: (_id, paths) => found.push(paths), pollMs: 30, steadyChecks: 2 })
+    watcher.update([{ id: 'w1', path: dir, goalId: 'goal-smaller', outputFolder: null, enabled: true }])
+    // Simulate the OS reporting the pre-existing file right after the watch starts.
+    const fsw = (watcher as unknown as { watchers: Map<string, { fsw: import('node:events').EventEmitter }> }).watchers.get('w1')!.fsw
+    fsw.emit('change', 'rename', 'old.jpg')
+    await sleep(300)
+    expect(found).toEqual([])
+  })
+
   it('sees files in subfolders and skips our own outputs', async () => {
     const dir = await tempDir()
     const found: string[] = []
@@ -55,8 +71,8 @@ describe('watch folders', () => {
     const own = join(dir, 'Day 1', 'a_compressed.jpg')
     watcher.ignore(own)
     // Written the way the queue writes: a hidden temp file, then a rename.
-    await writeFile(join(dir, 'Day 1', '.a_compressed.jpg.sqf-12345678.tmp'), 'x')
-    await rename(join(dir, 'Day 1', '.a_compressed.jpg.sqf-12345678.tmp'), own)
+    await writeFile(join(dir, 'Day 1', '.a_compressed.jpg.sqm-12345678.tmp'), 'x')
+    await rename(join(dir, 'Day 1', '.a_compressed.jpg.sqm-12345678.tmp'), own)
     await writeFile(join(dir, 'Day 1', 'b.png'), 'png')
     for (let i = 0; i < 40 && !found.length; i++) await sleep(50)
     await sleep(200)
