@@ -590,7 +590,15 @@ SquashMedia itself is [MIT licensed](LICENSE): free to use, copy, modify and red
 
 ### Disclaimer
 
-SquashMedia is provided "as is", without warranty of any kind, express or implied. This is a free, community-maintained tool, not a commercial product with a support contract behind it. As the [MIT Licence](LICENSE) sets out, the author and contributors accept no liability for any claim, damages or other loss arising from its use — including, but not limited to, corrupted, lost or unexpectedly overwritten photos and videos. SquashMedia goes out of its way to avoid overwriting your originals by default (see [History and undo](#history-and-undo)) and never touches a file without your say-so, but you use it at your own risk. Always keep your own backups of anything irreplaceable before compressing it.
+SquashMedia is provided "as is" and "as available", without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement. This is a free, community-maintained tool, not a commercial product with a support contract, service level agreement, or guarantee of ongoing maintenance behind it — there is no obligation to keep developing it, fix any particular bug, or respond to any particular issue within any particular time.
+
+To the fullest extent permitted by law, the author and contributors accept no liability for any claim, damages, or other liability, whether in an action of contract, tort (including negligence) or otherwise, arising from, out of, or in connection with SquashMedia or its use — including, but not limited to, corrupted, lost, or unexpectedly overwritten photos and videos, or any direct, indirect, incidental, special, consequential or exemplary damages, even if advised of the possibility of such damages. By downloading or using SquashMedia, you agree to indemnify and hold harmless the author and contributors from any claim, loss or expense (including reasonable legal costs) arising from your use or misuse of it. Nothing in this disclaimer excludes or limits liability that cannot lawfully be excluded or limited, such as liability for death or personal injury caused by negligence, or for fraud.
+
+SquashMedia goes out of its way to avoid overwriting your originals by default (see [History and undo](#history-and-undo)) and never touches a file without your say-so, but you use it entirely at your own risk. **Always keep your own backups of anything irreplaceable before compressing it.**
+
+This disclaimer, and use of SquashMedia generally, is governed by the law of England and Wales, and the courts of England and Wales have exclusive jurisdiction over any dispute arising from it — without prejudice to any statutory right you may have to bring proceedings in your own country of residence. If any part of this disclaimer is found unenforceable, the rest continues to apply. "SquashMedia" and any associated names or logos in this repository are not registered trademarks and are used here only to identify the project; this is not affiliated with, and makes no claim of affiliation with, any similarly named product.
+
+This section is a plain-language summary written by the project's maintainer with AI assistance, not a substitute for professional legal advice — if you need a guarantee about how enforceable it is, or you're distributing SquashMedia commercially, get your own solicitor to check it.
 
 ### Privacy & data
 
@@ -610,4 +618,12 @@ SquashMedia is written in TypeScript on [Electron](https://www.electronjs.org) (
 - [React](https://react.dev), [Zustand](https://github.com/pmndrs/zustand), [Radix UI](https://www.radix-ui.com), [Tailwind CSS](https://tailwindcss.com) and [Lucide](https://lucide.dev) (MIT/ISC) for the interface.
 - [electron-updater](https://www.electron.build) and [systeminformation](https://systeminformation.io) (MIT) for updates and hardware detection.
 
-The full list of packages and their licences is in `package.json` and each package's own files under `node_modules`; running `npx license-checker --summary` from a checkout lists them all in one place.
+The full list of packages and their licences is in `package.json` and each package's own files under `node_modules`; running `npx license-checker --summary` from a checkout lists them all in one place. The complete text of the GPL-3.0, LGPL-3.0 and Apache-2.0 licences that apply to the components above is reproduced in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+
+### Security
+
+Found a security issue rather than a regular bug? Please see [`SECURITY.md`](SECURITY.md) rather than opening a public issue.
+
+### Contributions
+
+By submitting a pull request or other contribution to this repository, you agree that it is provided under the same [MIT Licence](LICENSE) as the rest of the project, and that you have the right to submit it under that licence.
