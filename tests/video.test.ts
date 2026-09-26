@@ -315,7 +315,7 @@ describe('real encodes', async () => {
     expect(made.code).toBe(0)
     const phoneInfo = await probeVideo(phone)
     const tagsOf = async (p: string): Promise<string> =>
-      String((await runProcess(ffprobe, ['-v', 'error', '-show_entries', 'format_tags', '-of', 'compact', p])).stdout).toLowerCase()
+      String((await runProcess(ffprobe, ['-v', 'error', '-show_entries', 'format_tags:stream_tags', '-of', 'compact', p])).stdout).toLowerCase()
     expect(await tagsOf(phone)).toContain('51.5074')
     for (const container of ['mp4', 'mkv'] as const) {
       const out = join(dir, `private.${container}`)

@@ -45,6 +45,22 @@ describe('watch folders', () => {
     expect(found).toHaveLength(1)
   })
 
+  it('never reports a file that was already there, even if the OS fires an event for it', async () => {
+    // fs.watch on some platforms can still report an event for a file that
+    // changed just before watching started; a snapshot of what was already
+    // there when watching began must override that.
+    const dir = await tempDir()
+    await writeFile(join(dir, 'old.jpg'), 'existing')
+    const found: string[][] = []
+    watcher = new FolderWatcher({ onFound: (_id, paths) => found.push(paths), pollMs: 30, steadyChecks: 2 })
+    watcher.update([{ id: 'w1', path: dir, goalId: 'goal-smaller', outputFolder: null, enabled: true }])
+    // Simulate the OS reporting the pre-existing file right after the watch starts.
+    const fsw = (watcher as unknown as { watchers: Map<string, { fsw: import('node:events').EventEmitter }> }).watchers.get('w1')!.fsw
+    fsw.emit('change', 'rename', 'old.jpg')
+    await sleep(300)
+    expect(found).toEqual([])
+  })
+
   it('sees files in subfolders and skips our own outputs', async () => {
     const dir = await tempDir()
     const found: string[] = []

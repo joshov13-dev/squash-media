@@ -56,7 +56,7 @@ interface ProbeStream {
 
 interface ProbeJson {
   streams?: ProbeStream[]
-  format?: { format_name?: string; duration?: string; bit_rate?: string }
+  format?: { format_name?: string; duration?: string; bit_rate?: string; tags?: Record<string, string> }
 }
 
 function parseRate(rate: string | undefined): number {
@@ -93,6 +93,9 @@ export function parseProbe(json: ProbeJson): VideoInfo {
   const sideways = Math.abs(rotation) % 180 === 90
   const bitrate = num(json.format?.bit_rate)
   const audioBitrate = num(audio[0]?.bit_rate)
+  // FFmpeg's demuxer exposes this specially; some muxers only write it back
+  // when it is set explicitly, rather than through -map_metadata alone.
+  const creationTime = json.format?.tags?.creation_time ?? video.tags?.creation_time
 
   return {
     kind: 'video',
@@ -111,6 +114,7 @@ export function parseProbe(json: ProbeJson): VideoInfo {
     audioBitrateKbps: audioBitrate ? Math.round(audioBitrate / 1000) : null,
     audioStreams: audio.length,
     subtitleStreams: subs.length,
+    creationTime: creationTime || undefined,
   }
 }
 
@@ -386,6 +390,10 @@ export function buildVideoArgs(input: BuildArgsInput): string[] {
   if (!analysis && !config.keepLocation) {
     for (const tag of LOCATION_TAGS) args.push('-metadata', `${tag}=`)
   }
+  // -map_metadata should carry this across on its own, but re-asserting it
+  // explicitly means the recording date survives even on a muxer that does
+  // not otherwise round-trip it.
+  if (!analysis && info.creationTime) args.push('-metadata', `creation_time=${info.creationTime}`)
 
   // Filters: drop frames first, then scale fewer of them.
   const filters: string[] = []

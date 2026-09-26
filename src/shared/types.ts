@@ -79,6 +79,8 @@ export interface VideoInfo {
   audioBitrateKbps: number | null
   audioStreams: number
   subtitleStreams: number
+  /** When the source was recorded, if it says. Carried onto the compressed copy. */
+  creationTime?: string
 }
 
 export type MediaInfo = ImageInfo | VideoInfo

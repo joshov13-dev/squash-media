@@ -3,7 +3,7 @@
 // up half-written. Files already in the folder when watching starts are left
 // alone.
 import { watch, type FSWatcher } from 'node:fs'
-import { open, stat } from 'node:fs/promises'
+import { open, readdir, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type { WatchFolder, WatchStatus } from '@shared/types'
 import { classifyPath } from './services/mediaResolver'
@@ -28,6 +28,9 @@ export interface WatcherOptions {
 }
 
 /** Skip our own temp files, hidden files and system clutter. */
+const SEED_MAX_DEPTH = 8
+const SEED_SKIP_DIRS = new Set(['node_modules', '__pycache__', 'System Volume Information'])
+
 export function isCandidate(path: string): boolean {
   const name = basename(path)
   if (name.startsWith('.') || name.startsWith('~$') || name.includes('.sqm-')) return false
@@ -105,6 +108,12 @@ export class FolderWatcher {
       })
       entry.fsw = fsw
       entry.error = undefined
+      // Take stock of what's already there so it can never be picked up as
+      // new. On macOS in particular, a recursive fs.watch can still report
+      // an event for a file that changed just before watching started (it
+      // catches up on the OS's very recent change history), so a fresh
+      // event alone is not proof a file is actually new.
+      void this.seedExisting(folder.path)
     } catch (e) {
       entry.error = friendly(e)
       this.scheduleRetry()
@@ -127,6 +136,28 @@ export class FolderWatcher {
         this.retryTimer = null
       }
     }, 30_000)
+  }
+
+  /** List candidate files already in a folder, so start() can mark them known. */
+  private async seedExisting(root: string, depth = 0): Promise<void> {
+    if (depth > SEED_MAX_DEPTH) return
+    let entries
+    try {
+      entries = await readdir(root, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const path = join(root, entry.name)
+      if (entry.isDirectory()) {
+        if (!SEED_SKIP_DIRS.has(entry.name)) void this.seedExisting(path, depth + 1)
+        continue
+      }
+      if (!entry.isFile() || !isCandidate(path)) continue
+      const key = this.key(path)
+      this.reported.add(key)
+      this.pending.delete(key)
+    }
   }
 
   private seen(watchId: string, path: string): void {
