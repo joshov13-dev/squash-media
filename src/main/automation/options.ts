@@ -53,6 +53,8 @@ export interface VideoOptions {
   /** "auto" uses the graphics card when one can encode the codec. */
   encoder?: EncoderChoice
   speed?: 'fastest' | 'fast' | 'medium' | 'slow'
+  /** Keep the GPS location recorded by phones. Default false (removed for privacy). */
+  keep_location?: boolean
 }
 
 export interface OutputOptions {
@@ -195,6 +197,7 @@ export function resolveOptions(opts: CompressOptions = {}): ResolvedOptions {
   }
   if (v.audio_kbps !== undefined) video.audioBitrateKbps = intIn(v.audio_kbps, 32, 512, 'audio_kbps')
   if (v.encoder !== undefined) video.encoderMode = oneOf(v.encoder, ENCODERS, 'encoder')
+  if (v.keep_location !== undefined) video.keepLocation = v.keep_location === true
   if (v.speed !== undefined) {
     const sp = SPEEDS[v.speed.toLowerCase()]
     if (!sp) throw new OptionError(`Unknown speed "${v.speed}". Use fastest, fast, medium or slow.`)

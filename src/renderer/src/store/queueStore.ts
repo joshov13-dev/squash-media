@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { formatEta } from '@shared/format'
 import { looksLikeOutput } from '@shared/naming'
+import { FFMPEG_MISSING } from '@shared/messages'
 import { GOALS } from '@shared/presets'
 import type { ImageJobConfig, JobRequest, JobStatus, JobUpdate, MediaFile, MediaJob, OutputSettings, TrimRange, VideoJobConfig } from '@shared/types'
 import { api } from '@renderer/lib/api'
@@ -105,7 +106,12 @@ export const useQueue = create<QueueState>()((set, get) => ({
       }))
       const dupes = files.length - fresh.length
       const parts: string[] = []
-      if (rejected.length) parts.push(`${rejected.length} skipped (${rejected[0].reason.toLowerCase()}${rejected.length > 1 ? ', ...' : ''})`)
+      if (rejected.length) {
+        const reasons = new Set(rejected.map((r) => r.reason))
+        // The FFmpeg problem already has its own message at the top of the queue.
+        const reason = rejected[0].reason === FFMPEG_MISSING ? 'FFmpeg is missing (see the message above)' : rejected[0].reason
+        parts.push(`${rejected.length} skipped: ${reason}${reasons.size > 1 ? ' (and other reasons)' : ''}`)
+      }
       if (dupes) parts.push(`${dupes} already in the queue`)
       if (leftOut) parts.push(`${leftOut} earlier compressed ${leftOut === 1 ? 'copy' : 'copies'} left out`)
       if (!found.length && !rejected.length) parts.push('No photos or videos found there')
@@ -181,7 +187,7 @@ export const useQueue = create<QueueState>()((set, get) => ({
     const ids = new Set(requests.map((r) => r.id))
     set((s) => ({
       jobs: s.jobs.map((j) => {
-        if (blocked.has(j.id)) return { ...resetJob(j), status: 'failed', error: 'FFmpeg was not found, so videos cannot be encoded' }
+        if (blocked.has(j.id)) return { ...resetJob(j), status: 'failed', error: FFMPEG_MISSING }
         if (ids.has(j.id)) return { ...resetJob(j), status: 'queued', startedAt: Date.now() }
         return j
       }),
@@ -241,7 +247,7 @@ export const useQueue = create<QueueState>()((set, get) => ({
         relativeDir: below || undefined,
         imageOverride: f.type === 'image' ? { ...goal.image, resize: { ...goal.image.resize } } : undefined,
         // Keep the graphics card choice from the Videos tab.
-        videoOverride: f.type === 'video' ? { ...goal.video, encoderMode: video.encoderMode } : undefined,
+        videoOverride: f.type === 'video' ? { ...goal.video, encoderMode: video.encoderMode, keepLocation: video.keepLocation } : undefined,
         outputOverride: jobOutput,
         origin: 'watch',
       }

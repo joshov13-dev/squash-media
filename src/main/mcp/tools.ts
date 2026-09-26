@@ -1,8 +1,9 @@
-// The tools SquashForge offers AI apps over MCP, with descriptions written
+// The tools SquashMedia offers AI apps over MCP, with descriptions written
 // for the model: what each one does, when to use it, and what comes back.
 import { ENCODER_LABELS, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/codecs'
 import { formatBytes, formatDuration } from '@shared/format'
 import { NAME_TOKENS } from '@shared/naming'
+import { FFMPEG_MISSING } from '@shared/messages'
 import { GOALS } from '@shared/presets'
 import type { MediaFile } from '@shared/types'
 import type { Engine } from '../automation/engine'
@@ -40,14 +41,14 @@ const optionsSchema = {
     type: 'string',
     enum: goalIds,
     description:
-      'Starting point for both photos and videos. smaller: same formats, about half the size, looks the same (default). share: WebP photos up to 2560 px and 1080p30 H.264 videos. smallest: AVIF photos and H.265 1080p video, slowest. discord: everything under 10 MB. email: photos under 2 MB, videos under 20 MB. quality: lossless photos, near-original H.265 video.',
+      'Starting point for both photos and videos. smaller: same formats, usually about half the size with little visible difference (default). share: WebP photos up to 2560 px and 1080p30 H.264 videos. smallest: AVIF photos and H.265 1080p video, slowest. discord: everything under 10 MB. email: photos under 2 MB, videos under 20 MB. quality: lossless photos, near-original H.265 video.',
   },
   photo: {
     type: 'object',
     description: 'Only set what the user asked for; the rest comes from the goal.',
     properties: {
       format: { type: 'string', enum: ['original', 'jpeg', 'png', 'webp', 'avif'], description: '"original" keeps each file\'s format (HEIC becomes JPEG).' },
-      quality: { type: 'integer', minimum: 1, maximum: 100, description: 'Higher is better quality and bigger. 75-85 looks the same as the original for most photos.' },
+      quality: { type: 'integer', minimum: 1, maximum: 100, description: 'Higher is better quality and bigger. 75-85 is hard to tell from the original for most photos.' },
       max_dimension: { type: 'integer', minimum: 16, description: 'Shrink so the longest side is at most this many pixels. Never enlarges.' },
       target_size: { type: ['string', 'number'], description: 'Largest file size, e.g. "500KB" or "2MB" (a number means MB). Finds the best quality that fits.' },
       lossless: { type: 'boolean', description: 'Keep every pixel. Saves less space.' },
@@ -73,6 +74,7 @@ const optionsSchema = {
         description: 'auto (default) uses the graphics card when it can, which is many times faster; cpu makes slightly smaller files.',
       },
       speed: { type: 'string', enum: ['fastest', 'fast', 'medium', 'slow'], description: 'Slower squeezes a little harder on the CPU.' },
+      keep_location: { type: 'boolean', description: 'Keep the GPS location phones record in videos. Default false (removed for privacy); the recording date is always kept.' },
     },
     additionalProperties: false,
   },
@@ -146,7 +148,7 @@ const clampWait = (v: unknown, fallback: number): number => Math.max(0, Math.min
 export const TOOLS: Tool[] = [
   {
     name: 'get_capabilities',
-    title: 'What SquashForge can do on this computer',
+    title: 'What SquashMedia can do on this computer',
     description:
       'Lists the goals (presets), supported file types, output options, name pattern tokens, and this computer\'s hardware: CPU, graphics card and which GPU video encoders work. Call once before your first compression if you need to choose settings or estimate how long video will take.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -176,7 +178,7 @@ export const TOOLS: Tool[] = [
         ],
       }
       const gpu = data.hardware.gpu_video_encoders.length ? `GPU encoding: ${data.hardware.gpu_video_encoders.join(', ')}` : 'No GPU encoder, videos use the CPU'
-      return text(`SquashForge ${data.version} on ${hw.cpuModel}. ${gpu}.`, data)
+      return text(`SquashMedia ${data.version} on ${hw.cpuModel}. ${gpu}.`, data)
     },
   },
   {
@@ -303,7 +305,7 @@ export const TOOLS: Tool[] = [
       }
       const hw = await engine.hardware()
       const videos = files.filter((f) => f.type === 'video')
-      if (videos.length && !hw.ffmpegAvailable) return fail('FFmpeg is missing, so videos cannot be compressed. Reinstalling SquashForge fixes this.')
+      if (videos.length && !hw.ffmpegAvailable) return fail(FFMPEG_MISSING)
       if (args.dry_run) {
         const plan = await engine.plan(files, o)
         return text(
@@ -333,7 +335,7 @@ export const TOOLS: Tool[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args, engine) => {
       const status = await engine.wait(String(args.batch_id), clampWait(args.wait_seconds, 30))
-      if (!status) return fail(`No batch "${String(args.batch_id)}". Batches only last while this SquashForge server runs. Known: ${engine.batchIds().join(', ') || 'none'}.`)
+      if (!status) return fail(`No batch "${String(args.batch_id)}". Batches only last while this SquashMedia server runs. Known: ${engine.batchIds().join(', ') || 'none'}.`)
       return statusResult(status, 0)
     },
   },
@@ -353,7 +355,7 @@ export const TOOLS: Tool[] = [
     name: 'list_history',
     title: 'Recent compressions',
     description:
-      'Recent runs from the SquashForge app, its watched folders, the command line and AI apps, newest first, with each file\'s original and output paths and sizes. Use it to find a run_id for undo_compression or to answer "what did I compress".',
+      'Recent runs from the SquashMedia app, its watched folders, the command line and AI apps, newest first, with each file\'s original and output paths and sizes. Use it to find a run_id for undo_compression or to answer "what did I compress".',
     inputSchema: {
       type: 'object',
       properties: { limit: { type: 'integer', minimum: 1, maximum: 100, description: 'Runs to return (default 10).' } },

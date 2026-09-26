@@ -133,7 +133,7 @@ export function GeneralPane() {
         />
         <Toggle
           label="Show a notification when it finishes"
-          hint="Only when SquashForge is not the window you are using."
+          hint="Only when SquashMedia is not the window you are using."
           checked={prefs.notifyWhenDone}
           onChange={(notifyWhenDone) => set({ notifyWhenDone })}
         />
@@ -147,7 +147,7 @@ export function GeneralPane() {
 
       <Group title="Diagnostics">
         <p className="text-[12px] leading-relaxed text-ink-3">
-          SquashForge keeps a log of what it does: files compressed, problems, and settings changes. Run something, then copy the log here to
+          SquashMedia keeps a log of what it does: files compressed, problems, and settings changes. Run something, then copy the log here to
           share it. It includes file names and paths, but never the files themselves.
         </p>
         <div className="flex flex-wrap items-center gap-2">

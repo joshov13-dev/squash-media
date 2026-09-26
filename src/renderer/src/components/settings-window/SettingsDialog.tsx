@@ -36,7 +36,7 @@ export function SettingsDialog() {
       <ModalTrigger icon={<Settings size={15} strokeWidth={1.75} />} label="Settings" badge={updateReady} />
       <ModalBody
         title="Settings"
-        description="How SquashForge runs on this computer."
+        description="How SquashMedia runs on this computer."
         width={760}
         className="flex gap-6 pb-0"
         footer={

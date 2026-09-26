@@ -96,7 +96,7 @@ export function AiPane() {
     <div className="space-y-7">
       <Group title="AI apps">
         <p className="text-[12px] leading-relaxed text-ink-3">
-          Connect an AI app and you can ask it to compress things for you. It runs SquashForge on this computer, so your photos and videos are
+          Connect an AI app and you can ask it to compress things for you. It runs SquashMedia on this computer, so your photos and videos are
           never uploaded. The AI only sees file names, sizes and results.
         </p>
         {!info.supported && <p className="rounded-lg bg-hover px-3 py-2.5 text-[12px] leading-relaxed text-ember">{info.problem}</p>}
@@ -123,7 +123,7 @@ export function AiPane() {
             <summary className="cursor-pointer text-ink-2 hover:text-ink">Another AI app, or setting it up by hand</summary>
             <div className="mt-2 space-y-3">
               <p className="leading-relaxed text-ink-3">
-                Any app that supports MCP servers can use SquashForge. Add this to its MCP settings (often a file called mcp.json):
+                Any app that supports MCP servers can use SquashMedia. Add this to its MCP settings (often a file called mcp.json):
               </p>
               <pre className="num max-h-48 overflow-auto rounded-md bg-ground p-2.5 text-[11px] leading-relaxed text-ink-2">{info.manualJson}</pre>
               <CopyButton text={info.manualJson} label="Copy settings" />
@@ -141,21 +141,21 @@ export function AiPane() {
 
       <Group title="Command line">
         <p className="text-[12px] leading-relaxed text-ink-3">
-          Compress from a terminal or a script with the <span className="num text-ink-2">squashforge</span> command. It uses the same goals and
+          Compress from a terminal or a script with the <span className="num text-ink-2">squashmedia</span> command. It uses the same goals and
           settings folder as this window, and its runs show up in History.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant={info.command.installed ? 'raised' : 'primary'} disabled={busy || !info.supported} onClick={() => void install()}>
-            <Terminal size={13} /> {info.command.installed ? 'Reinstall the command' : 'Install the squashforge command'}
+            <Terminal size={13} /> {info.command.installed ? 'Reinstall the command' : 'Install the squashmedia command'}
           </Button>
           {info.command.installed && <span className="text-[12px] text-ink-3">Installed{info.command.onPath ? '' : ', open a new terminal to use it'}</span>}
         </div>
         <pre className="num overflow-x-auto rounded-md bg-ground p-2.5 text-[11px] leading-relaxed text-ink-2">
           {[
-            'squashforge compress "D:\\Phone backup" --goal share',
-            'squashforge compress clip.mov --goal discord',
-            'squashforge compress Videos --resolution 1080p --out Videos\\small',
-            'squashforge help',
+            'squashmedia compress "D:\\Phone backup" --goal share',
+            'squashmedia compress clip.mov --goal discord',
+            'squashmedia compress Videos --resolution 1080p --out Videos\\small',
+            'squashmedia help',
           ].join('\n')}
         </pre>
       </Group>

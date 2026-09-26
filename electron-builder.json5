@@ -1,12 +1,12 @@
-// Packaging for SquashForge, into release/<version>:
+// Packaging for SquashMedia, into release/<version>:
 //   Windows: npm run fetch:ffmpeg && npm run dist:win     -> Setup and portable .exe
 //   macOS:   fetch mac-arm64 and mac-x64, npm run dist:mac -> a .dmg for each
 //   Linux:   npm run fetch:ffmpeg -- linux && npm run dist:linux -> AppImage and .deb
 {
   $schema: 'https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json',
-  appId: 'com.squashforge.app',
-  productName: 'SquashForge',
-  copyright: 'Copyright © 2026 SquashForge contributors',
+  appId: 'com.squashmedia.app',
+  productName: 'SquashMedia',
+  copyright: 'Copyright © 2026 SquashMedia contributors',
   directories: {
     buildResources: 'build',
     output: 'release/${version}',
@@ -32,7 +32,7 @@
   compression: 'maximum',
   win: {
     icon: 'build/icon.png',
-    executableName: 'SquashForge',
+    executableName: 'SquashMedia',
     target: [
       { target: 'nsis', arch: ['x64'] },
       { target: 'portable', arch: ['x64'] },
@@ -46,15 +46,15 @@
     ],
   },
   nsis: {
-    // Right-click "Compress with SquashForge" and the "Send to" entry.
+    // Right-click "Compress with SquashMedia" and the "Send to" entry.
     include: 'build/installer.nsh',
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: 'SquashForge',
-    uninstallDisplayName: 'SquashForge',
+    shortcutName: 'SquashMedia',
+    uninstallDisplayName: 'SquashMedia',
     artifactName: '${productName}-Setup-${version}-x64.${ext}',
   },
   portable: {
@@ -64,8 +64,9 @@
     icon: 'build/icon.png',
     category: 'public.app-category.photography',
     target: [{ target: 'dmg', arch: ['arm64', 'x64'] }],
-    // No Apple Developer certificate: sign ad hoc so Apple silicon Macs will
-    // run it. People open it the first time with right-click > Open.
+    // No Apple Developer certificate, so no notarisation: sign ad hoc so Apple
+    // silicon Macs will run it. Gatekeeper still blocks the first launch; the
+    // README walks people through Privacy & Security > Open Anyway.
     identity: '-',
     hardenedRuntime: false,
     gatekeeperAssess: false,
@@ -83,8 +84,8 @@
   linux: {
     icon: 'build/icon.png',
     category: 'Graphics',
-    executableName: 'squashforge',
-    maintainer: 'SquashForge <squashforge@users.noreply.github.com>',
+    executableName: 'squashmedia',
+    maintainer: 'SquashMedia <squashmedia@users.noreply.github.com>',
     synopsis: 'Compress photos and videos',
     target: [
       { target: 'AppImage', arch: ['x64'] },

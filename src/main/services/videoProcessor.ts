@@ -230,6 +230,9 @@ const AMF_QUALITY: Record<VideoSpeedPreset, string> = { ultrafast: 'speed', fast
 
 const MUXERS: Record<VideoContainer, string> = { mp4: 'mp4', mkv: 'matroska', webm: 'webm' }
 
+/** Where phones and cameras put the GPS position in a video's metadata. */
+export const LOCATION_TAGS = ['location', 'location-eng', 'com.apple.quicktime.location.ISO6709']
+
 export interface BuildArgsInput {
   input: string
   /** Output file, or null for an analysis pass that discards output. */
@@ -378,6 +381,11 @@ export function buildVideoArgs(input: BuildArgsInput): string[] {
   if (!analysis && input.audio !== 'none') args.push('-map', '0:a?')
   if (keepSubs) args.push('-map', '0:s?', '-map', '0:t?', '-c:s', 'copy', '-c:t', 'copy')
   if (!analysis) args.push('-map_metadata', '0', '-map_chapters', '0')
+  // Dates and titles are kept, but where the video was filmed is private.
+  // An empty value removes the tag; these are the names phones use.
+  if (!analysis && !config.keepLocation) {
+    for (const tag of LOCATION_TAGS) args.push('-metadata', `${tag}=`)
+  }
 
   // Filters: drop frames first, then scale fewer of them.
   const filters: string[] = []
@@ -594,7 +602,7 @@ async function encodeWith(o: EncodeVideoOptions, plan: Attempt, retryingOnCpu: b
     if (bitrate < 150) notes.push(`Very low bitrate (${bitrate} kbps). Try a smaller resolution`)
   }
 
-  const workDir = await mkdtemp(join(os.tmpdir(), 'squashforge-'))
+  const workDir = await mkdtemp(join(os.tmpdir(), 'squashmedia-'))
   let frameSeconds = 0
   let framesDone = 0
   try {
@@ -723,7 +731,7 @@ export async function generateVideoPreview(
   }
   let fallbackNote: string | undefined
 
-  const workDir = await mkdtemp(join(os.tmpdir(), 'squashforge-preview-'))
+  const workDir = await mkdtemp(join(os.tmpdir(), 'squashmedia-preview-'))
   const samplePath = join(workDir, `sample${CONTAINER_EXTENSIONS[config.container]}`)
   try {
     let firstAt = 0

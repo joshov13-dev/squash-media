@@ -1,4 +1,4 @@
-// Keeping SquashForge up to date. The installed Windows version (and the
+// Keeping SquashMedia up to date. The installed Windows version (and the
 // Linux AppImage) download new releases in the background and install on
 // restart. The portable exe and the unsigned Mac app cannot replace
 // themselves, so for those the app points to the download page instead.
@@ -77,7 +77,7 @@ export class Updater {
 
   private async checkWithGitHub(): Promise<void> {
     const res = await net.fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`, {
-      headers: { Accept: 'application/vnd.github+json', 'User-Agent': `SquashForge/${app.getVersion()}` },
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': `SquashMedia/${app.getVersion()}` },
     })
     if (res.status === 404) {
       this.set({ state: 'none' })
@@ -116,6 +116,6 @@ export class Updater {
 function friendly(e: unknown): string {
   const text = e instanceof Error ? e.message : String(e)
   if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|net::ERR_|getaddrinfo/i.test(text)) return 'Could not reach GitHub. Check the internet connection.'
-  if (/rate limit|403/i.test(text)) return 'GitHub is busy. SquashForge will try again later.'
+  if (/rate limit|403/i.test(text)) return 'GitHub is busy. SquashMedia will try again later.'
   return text.split('\n')[0].slice(0, 200)
 }

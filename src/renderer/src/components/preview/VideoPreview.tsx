@@ -11,6 +11,7 @@ import { useSettings } from '@renderer/store/settingsStore'
 import { useSystem } from '@renderer/store/systemStore'
 import { Button } from '../ui/controls'
 import { ComparePane } from './ComparePane'
+import { FFMPEG_MISSING } from '@shared/messages'
 
 interface CachedPreview {
   configKey: string
@@ -105,7 +106,7 @@ export function VideoPreview({ job }: { job: MediaJob & { info: VideoInfo } }) {
           <Button variant="primary" onClick={() => void run()} disabled={ffmpegMissing}>
             <Clapperboard size={14} strokeWidth={2} /> Preview sample
           </Button>
-          {ffmpegMissing && <p className="text-[12px] text-brick">FFmpeg was not found.</p>}
+          {ffmpegMissing && <p className="max-w-80 text-[12px] leading-relaxed text-brick">{FFMPEG_MISSING}</p>}
         </>
       )}
     </div>

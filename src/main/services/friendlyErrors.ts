@@ -1,4 +1,5 @@
 // Turns raw Node, sharp and FFmpeg errors into something a person can act on.
+import { FFMPEG_MISSING } from '@shared/messages'
 
 interface Rule {
   test: RegExp
@@ -11,8 +12,14 @@ const RULES: Rule[] = [
     message: 'The original could not be moved to the Recycle Bin, so it was left as it was. Try Same folder or Other folder instead.',
   },
   {
-    test: /spawn .*(ffmpeg|ffprobe).* ENOENT/i,
-    message: 'FFmpeg is missing, so videos cannot be processed. Reinstalling SquashForge puts it back.',
+    test: /spawn .*(ffmpeg|ffprobe).* ENOENT|need FFmpeg, which could not be found/i,
+    message: FFMPEG_MISSING,
+  },
+  {
+    // FFmpeg is there but will not run: a bad download, a missing system
+    // library, the wrong kind of processor, or blocked from running.
+    test: /error while loading shared libraries|Library not loaded|Illegal instruction|Exec format error|cannot execute binary|not a valid Win32 application|0xc000007b|spawn .*(ffmpeg|ffprobe).* (EACCES|EPERM|UNKNOWN)/i,
+    message: FFMPEG_MISSING,
   },
   {
     test: /ENOSPC|No space left on device|There is not enough space/i,
@@ -24,7 +31,7 @@ const RULES: Rule[] = [
   },
   {
     test: /EACCES|EPERM|permission denied|operation not permitted|Access is denied/i,
-    message: 'The system would not let SquashForge save here. Pick another output folder, or check the file is not read-only.',
+    message: 'The system would not let SquashMedia save here. Pick another output folder, or check the file is not read-only.',
   },
   {
     test: /ENOENT|No such file or directory/i,
@@ -52,7 +59,7 @@ const RULES: Rule[] = [
   },
   {
     test: /Unsupported image format|Input buffer contains unsupported image format|Premature end|corrupt|VipsJpeg|VipsForeignLoad/i,
-    message: 'This picture looks damaged or uses a format SquashForge cannot read.',
+    message: 'This picture looks damaged or uses a format SquashMedia cannot read.',
   },
   {
     test: /Input image exceeds pixel limit/i,

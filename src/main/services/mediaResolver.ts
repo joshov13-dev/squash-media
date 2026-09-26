@@ -6,6 +6,9 @@ import type { MediaFile, MediaType, ResolveResult } from '@shared/types'
 import { mapLimit } from '../utils/process'
 import { readImageInfo } from './imageProcessor'
 import { probeVideo } from './videoProcessor'
+import { FFMPEG_MISSING } from '@shared/messages'
+import { getHardwareProfile } from '../hardware'
+import { friendlyError } from './friendlyErrors'
 
 const MAX_FILES = 5000
 const MAX_DEPTH = 8
@@ -90,7 +93,11 @@ export async function resolveMedia(paths: string[]): Promise<ResolveResult> {
       const info = type === 'image' ? await readImageInfo(filePath) : await probeVideo(filePath)
       return { id: randomUUID(), filePath, fileName: basename(filePath), relativeDir, type, sizeBytes: size, info }
     } catch (e) {
-      rejected.push({ path: filePath, reason: e instanceof Error ? e.message : String(e) })
+      // FFmpeg reads videos and HEIC photos. When it is missing or broken, say
+      // that once in plain words rather than FFmpeg's own error.
+      const needsFfmpeg = type === 'video' || /\.(heic|heif)$/i.test(filePath)
+      const reason = needsFfmpeg && !(await getHardwareProfile()).ffmpegAvailable ? FFMPEG_MISSING : friendlyError(e).message
+      rejected.push({ path: filePath, reason })
       return null
     }
   })

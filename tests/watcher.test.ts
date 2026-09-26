@@ -15,7 +15,7 @@ describe('watch folders', () => {
     expect(isCandidate('/a/clip.mp4')).toBe(true)
     expect(isCandidate('/a/notes.txt')).toBe(false)
     expect(isCandidate('/a/.hidden.jpg')).toBe(false)
-    expect(isCandidate('/a/.photo.webp.sqf-1234abcd.tmp')).toBe(false)
+    expect(isCandidate('/a/.photo.webp.sqm-1234abcd.tmp')).toBe(false)
     expect(isCandidate('/a/video.mp4.crdownload')).toBe(false)
   })
 
@@ -55,8 +55,8 @@ describe('watch folders', () => {
     const own = join(dir, 'Day 1', 'a_compressed.jpg')
     watcher.ignore(own)
     // Written the way the queue writes: a hidden temp file, then a rename.
-    await writeFile(join(dir, 'Day 1', '.a_compressed.jpg.sqf-12345678.tmp'), 'x')
-    await rename(join(dir, 'Day 1', '.a_compressed.jpg.sqf-12345678.tmp'), own)
+    await writeFile(join(dir, 'Day 1', '.a_compressed.jpg.sqm-12345678.tmp'), 'x')
+    await rename(join(dir, 'Day 1', '.a_compressed.jpg.sqm-12345678.tmp'), own)
     await writeFile(join(dir, 'Day 1', 'b.png'), 'png')
     for (let i = 0; i < 40 && !found.length; i++) await sleep(50)
     await sleep(200)

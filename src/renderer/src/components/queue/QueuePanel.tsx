@@ -1,9 +1,11 @@
 import { FolderPlus, ListChecks, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { formatBytes } from '@shared/format'
+import { FFMPEG_MISSING } from '@shared/messages'
 import { api } from '@renderer/lib/api'
 import { cn } from '@renderer/lib/cn'
 import { FINISHED, useQueue } from '@renderer/store/queueStore'
 import { useSettings } from '@renderer/store/settingsStore'
+import { useSystem } from '@renderer/store/systemStore'
 import { whereFilesGo } from '../HelpPopover'
 import { Button, IconButton } from '../ui/controls'
 import { FinishBanner } from './FinishBanner'
@@ -71,6 +73,7 @@ export function QueuePanel({ wide = false }: { wide?: boolean }) {
   const clearFinished = useQueue((s) => s.clearFinished)
   const clearAll = useQueue((s) => s.clearAll)
   const requeueFinished = useQueue((s) => s.requeueFinished)
+  const ffmpegMissing = useSystem((s) => s.hardware !== null && !s.hardware.ffmpegAvailable)
 
   const totalBytes = jobs.reduce((sum, j) => sum + j.sizeBytes, 0)
   const images = jobs.filter((j) => j.type === 'image').length
@@ -99,6 +102,12 @@ export function QueuePanel({ wide = false }: { wide?: boolean }) {
           <Trash2 size={15} />
         </IconButton>
       </div>
+
+      {ffmpegMissing && (
+        <p role="alert" className="mx-3 mb-2 rounded-lg bg-raised px-3 py-2 text-[12px] leading-relaxed text-brick">
+          {FFMPEG_MISSING}
+        </p>
+      )}
 
       {jobs.length === 0 ? (
         <EmptyQueue />

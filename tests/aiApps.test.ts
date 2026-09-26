@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { addServer, aiApps, claudeCodeCommand, isConnected, launcherScript, removeServer, type LaunchSpec } from '../src/main/integrations/aiApps'
 
 const win: LaunchSpec = {
-  command: 'C:\\Users\\Sam Smith\\AppData\\Local\\Programs\\SquashForge\\SquashForge.exe',
-  args: ['C:\\Users\\Sam Smith\\AppData\\Local\\Programs\\SquashForge\\resources\\app.asar\\out\\main\\cli.js', 'mcp'],
+  command: 'C:\\Users\\Sam Smith\\AppData\\Local\\Programs\\SquashMedia\\SquashMedia.exe',
+  args: ['C:\\Users\\Sam Smith\\AppData\\Local\\Programs\\SquashMedia\\resources\\app.asar\\out\\main\\cli.js', 'mcp'],
   env: { ELECTRON_RUN_AS_NODE: '1' },
 }
 const mac: LaunchSpec = {
-  command: '/Applications/SquashForge.app/Contents/MacOS/SquashForge',
-  args: ["/Applications/SquashForge.app/Contents/Resources/app.asar/out/main/cli.js", 'mcp'],
+  command: '/Applications/SquashMedia.app/Contents/MacOS/SquashMedia',
+  args: ["/Applications/SquashMedia.app/Contents/Resources/app.asar/out/main/cli.js", 'mcp'],
   env: { ELECTRON_RUN_AS_NODE: '1' },
 }
 
@@ -22,12 +22,12 @@ describe('AI app settings', () => {
     expect(m.find((a) => a.id === 'cursor')?.config).toBe(join('/Users/sam', '.cursor', 'mcp.json'))
   })
 
-  it('adds SquashForge without touching other servers or settings', () => {
+  it('adds SquashMedia without touching other servers or settings', () => {
     const existing = JSON.stringify({ globalShortcut: 'Ctrl+Space', mcpServers: { files: { command: 'npx', args: ['files'] } } })
     const next = JSON.parse(addServer(existing, 'mcpServers', win))
     expect(next.globalShortcut).toBe('Ctrl+Space')
     expect(next.mcpServers.files).toEqual({ command: 'npx', args: ['files'] })
-    expect(next.mcpServers.squashforge).toEqual({ command: win.command, args: win.args, env: { ELECTRON_RUN_AS_NODE: '1' } })
+    expect(next.mcpServers.squashmedia).toEqual({ command: win.command, args: win.args, env: { ELECTRON_RUN_AS_NODE: '1' } })
     expect(isConnected(JSON.stringify(next), 'mcpServers')).toBe(true)
 
     const removed = JSON.parse(removeServer(JSON.stringify(next), 'mcpServers'))
@@ -36,9 +36,9 @@ describe('AI app settings', () => {
   })
 
   it('creates a new file and handles VS Code\'s own format', () => {
-    expect(JSON.parse(addServer(null, 'mcpServers', mac)).mcpServers.squashforge.command).toBe(mac.command)
+    expect(JSON.parse(addServer(null, 'mcpServers', mac)).mcpServers.squashmedia.command).toBe(mac.command)
     const vs = JSON.parse(addServer('\uFEFF{}', 'vscode', mac))
-    expect(vs.servers.squashforge).toMatchObject({ type: 'stdio', command: mac.command })
+    expect(vs.servers.squashmedia).toMatchObject({ type: 'stdio', command: mac.command })
     expect(isConnected(JSON.stringify(vs), 'vscode')).toBe(true)
   })
 
@@ -56,7 +56,7 @@ describe('AI app settings', () => {
     expect(added).toContain("env = { ELECTRON_RUN_AS_NODE = '1' }")
     expect(isConnected(added, 'codex-toml')).toBe(true)
     // Adding again replaces rather than duplicates.
-    expect(addServer(added, 'codex-toml', win).match(/\[mcp_servers\.squashforge\]/g)).toHaveLength(1)
+    expect(addServer(added, 'codex-toml', win).match(/\[mcp_servers\.squashmedia\]/g)).toHaveLength(1)
     const removed = removeServer(added, 'codex-toml')
     expect(isConnected(removed, 'codex-toml')).toBe(false)
     expect(removed).toContain('[mcp_servers.other]')
@@ -64,7 +64,7 @@ describe('AI app settings', () => {
 
   it('builds commands and launchers that survive spaces in paths', () => {
     expect(claudeCodeCommand(win, 'win32')).toBe(
-      `claude mcp add --scope user -e ELECTRON_RUN_AS_NODE=1 squashforge -- "${win.command}" "${win.args[0]}" mcp`,
+      `claude mcp add --scope user -e ELECTRON_RUN_AS_NODE=1 squashmedia -- "${win.command}" "${win.args[0]}" mcp`,
     )
     const cmd = launcherScript(win, 'win32')
     expect(cmd).toContain('set ELECTRON_RUN_AS_NODE=1')

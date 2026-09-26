@@ -148,6 +148,8 @@ export interface VideoJobConfig {
   scale: VideoScale
   /** 0 keeps the source frame rate. */
   fpsLimit: number
+  /** Keep the GPS location phones and cameras record. Removed unless true. */
+  keepLocation?: boolean
   /** Seconds into the source to start from. Set per file, never globally. */
   trimStart?: number
   /** Seconds into the source to stop at. Set per file, never globally. */
@@ -238,7 +240,7 @@ export interface AiAppStatus {
   name: string
   installed: boolean
   connected: boolean
-  /** The settings file SquashForge edits. Null for Claude Code, which has its own command. */
+  /** The settings file SquashMedia edits. Null for Claude Code, which has its own command. */
   configPath: string | null
   /** What to do after connecting, e.g. restart the app. */
   after: string

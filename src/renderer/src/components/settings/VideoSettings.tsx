@@ -242,6 +242,15 @@ export function VideoSettings() {
           onChange={(downmixStereo) => setVideo({ downmixStereo })}
         />
       </Section>
+
+      <Section title="Privacy">
+        <Toggle
+          label="Remove the location"
+          hint="Phones record where each video was filmed. It is removed unless you turn this off. The date it was filmed is always kept."
+          checked={!video.keepLocation}
+          onChange={(remove) => setVideo({ keepLocation: !remove })}
+        />
+      </Section>
     </div>
   )
 }

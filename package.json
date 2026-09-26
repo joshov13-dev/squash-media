@@ -1,12 +1,12 @@
 {
-  "name": "squashforge",
-  "productName": "SquashForge",
-  "version": "0.4.0",
+  "name": "squashmedia",
+  "productName": "SquashMedia",
+  "version": "0.5.0",
   "private": true,
   "description": "Compress photos and videos on Windows, macOS and Linux. Caesium-style image squeezing and HandBrake-style video encoding in one queue.",
   "author": {
-    "name": "SquashForge",
-    "email": "squashforge@users.noreply.github.com"
+    "name": "SquashMedia",
+    "email": "squashmedia@users.noreply.github.com"
   },
   "homepage": "https://github.com/joshov13-dev/squash-media",
   "license": "MIT",

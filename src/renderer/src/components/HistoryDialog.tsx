@@ -154,9 +154,9 @@ export function HistoryDialog() {
       }}
     >
       <ModalTrigger icon={<History size={15} strokeWidth={1.75} />} label="History" />
-      <ModalBody title="History" description="Files SquashForge has made, and a way to undo them." width={600}>
+      <ModalBody title="History" description="Files SquashMedia has made, and a way to undo them." width={600}>
         <p className="mb-4 text-[12px] leading-relaxed text-ink-3">
-          Every file SquashForge makes is listed here, including ones made by watched folders, the command line and AI apps. Undo moves the
+          Every file SquashMedia makes is listed here, including ones made by watched folders, the command line and AI apps. Undo moves the
           compressed copy to the {binName()}. If it replaced an original, the original is put back from the {binName()}.
         </p>
         {messages.length > 0 && (

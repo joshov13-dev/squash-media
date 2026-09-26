@@ -24,6 +24,9 @@ jobs:
       - run: npm run fetch:ffmpeg -- linux
       - run: npm run typecheck
       - run: npm test
+        env:
+          # Fail rather than quietly skip the video and HEIC tests.
+          SQUASHMEDIA_REQUIRE_FFMPEG: '1'
       - run: npm run build
 
   windows:
@@ -40,12 +43,14 @@ jobs:
       - run: npm ci
       - run: npm run fetch:ffmpeg
       - run: npm test
+        env:
+          SQUASHMEDIA_REQUIRE_FFMPEG: '1'
       - run: npm run dist:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - uses: actions/upload-artifact@v4
         with:
-          name: SquashForge-windows
+          name: SquashMedia-windows
           # latest.yml and the blockmap let installed copies update themselves.
           path: |
             release/*/*.exe
@@ -75,12 +80,16 @@ jobs:
       - run: npm ci
       - run: npm run fetch:ffmpeg -- mac-arm64
       - run: npm run fetch:ffmpeg -- mac-x64
+      # The runner is an Apple silicon Mac, so this tests the arm64 FFmpeg.
+      - run: npm test
+        env:
+          SQUASHMEDIA_REQUIRE_FFMPEG: '1'
       - run: npm run dist:mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - uses: actions/upload-artifact@v4
         with:
-          name: SquashForge-mac
+          name: SquashMedia-mac
           path: release/*/*.dmg
           if-no-files-found: error
       - name: Attach to release
@@ -105,7 +114,7 @@ jobs:
       - run: npm run dist:linux
       - uses: actions/upload-artifact@v4
         with:
-          name: SquashForge-linux
+          name: SquashMedia-linux
           path: |
             release/*/*.AppImage
             release/*/*.deb

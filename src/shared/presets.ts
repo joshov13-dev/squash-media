@@ -193,9 +193,9 @@ export const GOALS: Goal[] = [
   {
     id: 'goal-smaller',
     name: 'Smaller, same look',
-    description: 'Keeps each file’s format and size. Most files shrink by half or more and look the same.',
-    photos: 'Keeps each photo’s format and picture size. Most shrink by half or more and look the same.',
-    videos: 'Keeps each video’s picture size and length. Most shrink by half or more and look the same.',
+    description: 'Keeps each file’s format and size. Most files shrink by half or more with little or no visible difference.',
+    photos: 'Keeps each photo’s format and picture size. Most shrink by half or more with little or no visible difference.',
+    videos: 'Keeps each video’s picture size and length. Most shrink by half or more with little or no visible difference.',
     simple: true,
     image: img({}),
     video: vid({}),

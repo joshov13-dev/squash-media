@@ -36,7 +36,7 @@ export function ViewChooser() {
           onPointerDownOutside={(e) => e.preventDefault()}
           className="fixed top-1/2 left-1/2 z-50 w-[620px] max-w-[calc(100vw-48px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-raised p-7 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] outline-none"
         >
-          <Dialog.Title className="font-display text-[20px] font-semibold text-ink">Welcome to SquashForge</Dialog.Title>
+          <Dialog.Title className="font-display text-[20px] font-semibold text-ink">Welcome to SquashMedia</Dialog.Title>
           <Dialog.Description className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
             It makes photos and videos smaller, right here on your computer. Nothing is uploaded. How much do you want to see?
           </Dialog.Description>

@@ -97,7 +97,8 @@ export function looksLikeOutput(stem: string, template: string): boolean {
   }
   // A template made only of tokens (say "{date}") would match too much.
   if (!/[^\\]/.test(pattern.replace(/\\d\{4\}-\\d\{2\}-\\d\{2\}|\\d\+|\[a-z0-9\]\+|\.\+/g, ''))) return false
-  return new RegExp(`^${pattern.replace(/\s+$/, '')}$`, 'i').test(stem)
+  // " (2)" is added when the name was already taken.
+  return new RegExp(`^${pattern.replace(/\s+$/, '')}(?: \\(\\d+\\))?$`, 'i').test(stem)
 }
 
 /** "holiday.jpg becomes ..." preview for the settings. */

@@ -30,7 +30,7 @@ export interface WatcherOptions {
 /** Skip our own temp files, hidden files and system clutter. */
 export function isCandidate(path: string): boolean {
   const name = basename(path)
-  if (name.startsWith('.') || name.startsWith('~$') || name.includes('.sqf-')) return false
+  if (name.startsWith('.') || name.startsWith('~$') || name.includes('.sqm-')) return false
   if (/\.(tmp|part|crdownload|download)$/i.test(name)) return false
   return classifyPath(path) !== null
 }
@@ -66,7 +66,7 @@ export class FolderWatcher {
     this.emitStatus()
   }
 
-  /** Paths SquashForge writes itself are never picked up as new. */
+  /** Paths SquashMedia writes itself are never picked up as new. */
   ignore(path: string): void {
     this.reported.add(this.key(path))
   }
@@ -140,7 +140,7 @@ export class FolderWatcher {
   private async poll(): Promise<void> {
     const ready = new Map<string, string[]>()
     for (const [key, p] of [...this.pending]) {
-      // Written by SquashForge while it waited.
+      // Written by SquashMedia while it waited.
       if (this.reported.has(key)) {
         this.pending.delete(key)
         continue
@@ -186,6 +186,6 @@ async function readable(path: string): Promise<boolean> {
 function friendly(e: unknown): string {
   const code = (e as NodeJS.ErrnoException).code
   if (code === 'ENOENT') return 'The folder could not be found. Is the drive plugged in?'
-  if (code === 'EACCES' || code === 'EPERM') return 'SquashForge is not allowed to read this folder.'
+  if (code === 'EACCES' || code === 'EPERM') return 'SquashMedia is not allowed to read this folder.'
   return e instanceof Error ? e.message : String(e)
 }

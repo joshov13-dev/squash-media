@@ -66,7 +66,7 @@ export function HelpPopover() {
           sideOffset={6}
           className="z-50 w-[400px] rounded-xl bg-raised p-5 text-[12px] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.75)]"
         >
-          <h3 className="font-display text-[14px] font-semibold text-ink">How to use SquashForge</h3>
+          <h3 className="font-display text-[14px] font-semibold text-ink">How to use SquashMedia</h3>
           <ol className="mt-3 space-y-2.5">
             {steps.map((step, i) => (
               <li key={i} className="flex gap-3 leading-relaxed text-ink-2">
@@ -93,7 +93,7 @@ export function HelpPopover() {
           </dl>
 
           <p className="num mt-5 text-ink-3">
-            SquashForge {app?.version ?? ''}
+            SquashMedia {app?.version ?? ''}
             {ffmpeg ? ` · FFmpeg ${ffmpeg}` : ''}
           </p>
         </Popover.Content>

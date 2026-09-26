@@ -21,7 +21,7 @@ function contentSecurityPolicy(): Plugin {
     "base-uri 'none'",
   ].join('; ')
   return {
-    name: 'squashforge-csp',
+    name: 'squashmedia-csp',
     apply: 'build',
     transformIndexHtml: (html) =>
       html.replace('<head>', `<head>\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`),

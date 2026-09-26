@@ -20,7 +20,7 @@ let cached: BinaryPaths | null = null
 
 /**
  * Find ffmpeg/ffprobe. Order:
- * 1. SQUASHFORGE_FFMPEG_DIR environment variable
+ * 1. SQUASHMEDIA_FFMPEG_DIR environment variable
  * 2. `resources/bin` inside the packaged app
  * 3. `binaries/<platform>` in the project (development)
  * 4. whatever is on PATH
@@ -28,7 +28,7 @@ let cached: BinaryPaths | null = null
 export function getBinaryPaths(): BinaryPaths {
   if (cached) return cached
   const candidates: string[] = []
-  if (process.env.SQUASHFORGE_FFMPEG_DIR) candidates.push(process.env.SQUASHFORGE_FFMPEG_DIR)
+  if (process.env.SQUASHMEDIA_FFMPEG_DIR) candidates.push(process.env.SQUASHMEDIA_FFMPEG_DIR)
   if (process.resourcesPath) candidates.push(join(process.resourcesPath, 'bin'))
   candidates.push(resolve(__dirname, '../../binaries', platformDir()))
   candidates.push(resolve(process.cwd(), 'binaries', platformDir()))

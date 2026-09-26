@@ -5,22 +5,32 @@ import { join } from 'node:path'
 import { getBinaryPaths } from '../src/main/binaries'
 import { runProcess } from '../src/main/utils/process'
 
-export async function tempDir(prefix = 'sqf-test-'): Promise<string> {
+export async function tempDir(prefix = 'sqm-test-'): Promise<string> {
   return mkdtemp(join(os.tmpdir(), prefix))
 }
 
 let ffmpegOk: boolean | null = null
 
-/** True when an ffmpeg binary is available (bundled or on PATH). */
+/**
+ * True when an ffmpeg binary is available (bundled or on PATH). Video and
+ * HEIC tests skip without it. CI sets SQUASHMEDIA_REQUIRE_FFMPEG so a failed
+ * download fails the run instead of quietly skipping those tests.
+ */
 export async function hasFfmpeg(): Promise<boolean> {
-  if (ffmpegOk !== null) return ffmpegOk
-  const { ffmpeg, bundled } = getBinaryPaths()
-  if (bundled && !existsSync(ffmpeg)) return (ffmpegOk = false)
-  try {
-    const { code } = await runProcess(ffmpeg, ['-hide_banner', '-version'], { timeoutMs: 10_000 })
-    ffmpegOk = code === 0
-  } catch {
-    ffmpegOk = false
+  if (ffmpegOk === null) {
+    const { ffmpeg, bundled } = getBinaryPaths()
+    if (bundled && !existsSync(ffmpeg)) ffmpegOk = false
+    else {
+      try {
+        const { code } = await runProcess(ffmpeg, ['-hide_banner', '-version'], { timeoutMs: 10_000 })
+        ffmpegOk = code === 0
+      } catch {
+        ffmpegOk = false
+      }
+    }
+  }
+  if (!ffmpegOk && process.env.SQUASHMEDIA_REQUIRE_FFMPEG) {
+    throw new Error('FFmpeg was not found, so the video and HEIC tests would be skipped. Run npm run fetch:ffmpeg first.')
   }
   return ffmpegOk
 }

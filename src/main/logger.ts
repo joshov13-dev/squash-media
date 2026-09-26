@@ -37,7 +37,7 @@ function today(d = new Date()): string {
 }
 
 export function logFilePath(date = today()): string {
-  return join(dir(), `squashforge-${date}.log`)
+  return join(dir(), `squashmedia-${date}.log`)
 }
 
 async function cleanup(): Promise<void> {
@@ -47,7 +47,7 @@ async function cleanup(): Promise<void> {
   try {
     const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000
     for (const name of await readdir(dir())) {
-      if (!/^squashforge-\d{4}-\d{2}-\d{2}\.log$/.test(name)) continue
+      if (!/^squashmedia-\d{4}-\d{2}-\d{2}\.log$/.test(name)) continue
       const path = join(dir(), name)
       const s = await stat(path).catch(() => null)
       if (s && s.mtimeMs < cutoff) await rm(path, { force: true }).catch(() => undefined)
@@ -117,7 +117,7 @@ export function flushLogs(): Promise<void> {
 export async function listLogFiles(): Promise<string[]> {
   try {
     return (await readdir(dir()))
-      .filter((n) => /^squashforge-\d{4}-\d{2}-\d{2}\.log$/.test(n))
+      .filter((n) => /^squashmedia-\d{4}-\d{2}-\d{2}\.log$/.test(n))
       .sort()
       .map((n) => join(dir(), n))
   } catch {
@@ -144,7 +144,7 @@ export async function readRecentLog(maxChars = 300_000): Promise<string> {
 
 /** Something worth putting in every log, so a report says what it's about. */
 export function logStartup(scope: string, info: Record<string, unknown>): void {
-  logger.info(scope, 'SquashForge started', info)
+  logger.info(scope, 'SquashMedia started', info)
 }
 
 // Node exits on both of these by default when nothing is listening. Adding a

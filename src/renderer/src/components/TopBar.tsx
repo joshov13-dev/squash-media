@@ -33,7 +33,7 @@ export function TopBar() {
     <header className={cn('drag flex h-11 shrink-0 items-center gap-2 bg-ground', isMac ? 'pr-3 pl-20' : 'pr-[148px] pl-3')}>
       <div className="flex items-center gap-2 pr-3">
         <Logo />
-        <span className="font-display text-[14px] font-semibold tracking-[-0.01em] text-ink">SquashForge</span>
+        <span className="font-display text-[14px] font-semibold tracking-[-0.01em] text-ink">SquashMedia</span>
       </div>
       <Button onClick={addFiles}>
         <Plus size={15} strokeWidth={2} />
@@ -45,7 +45,7 @@ export function TopBar() {
       </Button>
       <div className="flex-1" />
       {update?.state === 'ready' && !running && (
-        <Tip label={`Version ${update.version} has downloaded. Restart SquashForge to start using it.`}>
+        <Tip label={`Version ${update.version} has downloaded. Restart SquashMedia to start using it.`}>
           <span className="no-drag">
             <Button variant="plain" onClick={() => void api.installUpdate()} className="text-ember hover:text-ember">
               <RotateCw size={14} /> Restart to update

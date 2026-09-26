@@ -305,6 +305,31 @@ describe('real encodes', async () => {
     expect(outInfo).toMatchObject({ width: 854, height: 480, container: 'matroska' })
   })
 
+  it.skipIf(!ok)('removes the GPS location from phone videos unless asked to keep it', async () => {
+    const { getBinaryPaths } = await import('../src/main/binaries')
+    const { runProcess } = await import('../src/main/utils/process')
+    const { ffmpeg, ffprobe } = getBinaryPaths()
+    const phone = join(dir, 'phone.mov')
+    const tags = ['location=+51.5074-000.1278/', 'com.apple.quicktime.location.ISO6709=+51.5074-000.1278+010.000/', 'creation_time=2024-05-01T10:00:00Z']
+    const made = await runProcess(ffmpeg, ['-y', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc2=s=320x240:d=1', '-c:v', 'libx264', '-movflags', 'use_metadata_tags', ...tags.flatMap((t) => ['-metadata', t]), phone])
+    expect(made.code).toBe(0)
+    const phoneInfo = await probeVideo(phone)
+    const tagsOf = async (p: string): Promise<string> =>
+      String((await runProcess(ffprobe, ['-v', 'error', '-show_entries', 'format_tags', '-of', 'compact', p])).stdout).toLowerCase()
+    expect(await tagsOf(phone)).toContain('51.5074')
+    for (const container of ['mp4', 'mkv'] as const) {
+      const out = join(dir, `private.${container}`)
+      await encodeVideo({ input: phone, output: out, info: phoneInfo, config: cfg({ container, preset: 'ultrafast' }), hardware: null })
+      const t = await tagsOf(out)
+      expect(t).not.toContain('51.5074')
+      // The date it was filmed stays, so photo libraries keep their order.
+      expect(t).toContain('creation_time=2024-05-01')
+    }
+    const kept = join(dir, 'kept.mp4')
+    await encodeVideo({ input: phone, output: kept, info: phoneInfo, config: cfg({ preset: 'ultrafast', keepLocation: true }), hardware: null })
+    expect(await tagsOf(kept)).toContain('51.5074')
+  })
+
   it.skipIf(!ok)('fits a two-pass target size', async () => {
     const out = join(dir, 'target.mp4')
     const target = 300 * 1024

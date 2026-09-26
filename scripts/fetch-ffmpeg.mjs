@@ -57,7 +57,7 @@ if (!source) {
 
 const outDir = join(root, 'binaries', source.dir)
 const urls = process.env.FFMPEG_URL ? [process.env.FFMPEG_URL] : source.urls
-const work = mkdtempSync(join(os.tmpdir(), 'squashforge-ffmpeg-'))
+const work = mkdtempSync(join(os.tmpdir(), 'squashmedia-ffmpeg-'))
 
 function run(cmd, args) {
   execFileSync(cmd, args, { stdio: 'inherit' })

@@ -1,4 +1,4 @@
-// Where AI apps keep their MCP server lists, and how to add SquashForge to
+// Where AI apps keep their MCP server lists, and how to add SquashMedia to
 // them. Pure functions (paths and file contents in, new contents out) so the
 // rules can be tested without touching anyone's real settings.
 import { join } from 'node:path'
@@ -30,7 +30,7 @@ export interface Dirs {
   appData: string
 }
 
-export const SERVER_NAME = 'squashforge'
+export const SERVER_NAME = 'squashmedia'
 
 /** Folder where an app built on Electron or VS Code keeps user settings. */
 function appSupport(d: Dirs, name: string): string {
@@ -65,7 +65,7 @@ export function aiApps(d: Dirs): AiAppDef[] {
       detect: vscode,
       config: join(vscode, 'mcp.json'),
       format: 'vscode',
-      after: 'In VS Code, open Copilot Chat in Agent mode and allow the SquashForge tools.',
+      after: 'In VS Code, open Copilot Chat in Agent mode and allow the SquashMedia tools.',
     },
     {
       id: 'windsurf',
@@ -120,14 +120,14 @@ function parseJson(text: string, file: string): Record<string, unknown> {
     // Falls through.
   }
   // Comments or trailing commas (allowed by VS Code) would be lost on rewrite.
-  throw new ConfigError(`${file} has comments or is not plain JSON, so SquashForge will not rewrite it. Add the settings by hand instead.`)
+  throw new ConfigError(`${file} has comments or is not plain JSON, so SquashMedia will not rewrite it. Add the settings by hand instead.`)
 }
 
 const listKey = (format: ConfigFormat): string => (format === 'vscode' ? 'servers' : 'mcpServers')
 
 export function isConnected(text: string | null, format: ConfigFormat): boolean {
   if (!text) return false
-  if (format === 'codex-toml') return /^\s*\[mcp_servers\.squashforge\]\s*$/m.test(text)
+  if (format === 'codex-toml') return /^\s*\[mcp_servers\.squashmedia\]\s*$/m.test(text)
   try {
     const servers = parseJson(text, '')[listKey(format)] as Record<string, unknown> | undefined
     return Boolean(servers && typeof servers === 'object' && SERVER_NAME in servers)
@@ -146,13 +146,13 @@ function removeTomlSection(text: string): string {
   const out: string[] = []
   let skipping = false
   for (const line of lines) {
-    if (/^\s*\[/.test(line)) skipping = /^\s*\[mcp_servers\.squashforge(\.[^\]]+)?\]\s*$/.test(line)
+    if (/^\s*\[/.test(line)) skipping = /^\s*\[mcp_servers\.squashmedia(\.[^\]]+)?\]\s*$/.test(line)
     if (!skipping) out.push(line)
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n')
 }
 
-/** The config file's new contents with SquashForge added (or updated). */
+/** The config file's new contents with SquashMedia added (or updated). */
 export function addServer(text: string | null, format: ConfigFormat, spec: LaunchSpec, file = 'The settings file'): string {
   if (format === 'codex-toml') {
     const rest = removeTomlSection(text ?? '').trimEnd()
@@ -174,7 +174,7 @@ export function addServer(text: string | null, format: ConfigFormat, spec: Launc
   return `${JSON.stringify(json, null, 2)}\n`
 }
 
-/** The config file's new contents with SquashForge taken out. */
+/** The config file's new contents with SquashMedia taken out. */
 export function removeServer(text: string, format: ConfigFormat, file = 'The settings file'): string {
   if (format === 'codex-toml') return `${removeTomlSection(text).trimEnd()}\n`
   const json = parseJson(text, file)
@@ -197,13 +197,13 @@ export function claudeCodeCommand(spec: LaunchSpec, platform: NodeJS.Platform): 
   return ['claude', 'mcp', 'add', '--scope', 'user', ...env, SERVER_NAME, '--', spec.command, ...spec.args].map((a) => quoteArg(a, platform)).join(' ')
 }
 
-/** The launcher behind the "squashforge" command. */
+/** The launcher behind the "squashmedia" command. */
 export function launcherScript(spec: LaunchSpec, platform: NodeJS.Platform): string {
   const [script, ...rest] = spec.args.filter((a) => a !== 'mcp')
   if (platform === 'win32') {
     return [
       '@echo off',
-      'rem Made by SquashForge. Runs its command line without opening a window.',
+      'rem Made by SquashMedia. Runs its command line without opening a window.',
       'setlocal',
       ...Object.entries(spec.env).map(([k, v]) => `set ${k}=${v}`),
       `"${spec.command}" "${script}" ${rest.map((a) => `"${a}"`).join(' ')}%*`.replace(/ {2,}/g, ' '),
@@ -211,7 +211,7 @@ export function launcherScript(spec: LaunchSpec, platform: NodeJS.Platform): str
     ].join('\r\n')
   }
   const env = Object.entries(spec.env).map(([k, v]) => `export ${k}=${quoteArg(v, platform)}`)
-  const lines = ['#!/usr/bin/env bash', '# Made by SquashForge. Runs its command line without opening a window.', ...env]
+  const lines = ['#!/usr/bin/env bash', '# Made by SquashMedia. Runs its command line without opening a window.', ...env]
   // Electron's own GLib on Linux clashes harmlessly with sharp's and prints
   // warnings; hide them so the output stays readable.
   if (platform === 'linux') lines.push("exec 2> >(grep --line-buffered -v -e 'GLib-GObject-CRITICAL' -e '^$' >&2)")

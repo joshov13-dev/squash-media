@@ -78,7 +78,7 @@ export async function decodeHeic(
   let temp: string | null = null
   if (!input) {
     // FFmpeg needs to seek inside HEIF files, so a pipe will not do.
-    temp = join(os.tmpdir(), `sqf-${randomUUID()}.heic`)
+    temp = join(os.tmpdir(), `sqm-${randomUUID()}.heic`)
     await writeFile(temp, data)
     input = temp
   }
