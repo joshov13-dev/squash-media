@@ -38,14 +38,22 @@ const SOURCES = {
   },
 }
 
-// Martin Riedl's static macOS builds come as one zip per program.
-const RIEDL = 'https://ffmpeg.martin-riedl.de/redirect/latest/macos'
-for (const [name, arch] of [['mac-arm64', 'arm64'], ['mac-x64', 'amd64']]) {
+// Martin Riedl's static macOS builds come as one zip per program. Pinned to
+// a specific release (8.1.2, the same line as the Windows/Linux build above)
+// rather than his rolling "latest" redirect: the newer 9.0.x builds this
+// site currently serves as "latest" have a real bug where a video's
+// recording date (creation_time) never makes it into MP4 output, no matter
+// how it's set on the FFmpeg command line. Check
+// https://ffmpeg.martin-riedl.de/info/history/macos/<arch>/release before
+// bumping this, and re-run tests/video.test.ts's real-encode tests first.
+const RIEDL = 'https://ffmpeg.martin-riedl.de/download/macos'
+const RIEDL_BUILDS = { 'mac-arm64': { arch: 'arm64', build: '1783011502_8.1.2' }, 'mac-x64': { arch: 'amd64', build: '1783018342_8.1.2' } }
+for (const [name, { arch, build }] of Object.entries(RIEDL_BUILDS)) {
   SOURCES[name] = {
     dir: name,
     exe: '',
     libraries: null,
-    split: { ffmpeg: `${RIEDL}/${arch}/release/ffmpeg.zip`, ffprobe: `${RIEDL}/${arch}/release/ffprobe.zip` },
+    split: { ffmpeg: `${RIEDL}/${arch}/${build}/ffmpeg.zip`, ffprobe: `${RIEDL}/${arch}/${build}/ffprobe.zip` },
   }
 }
 
