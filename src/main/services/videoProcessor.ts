@@ -392,8 +392,11 @@ export function buildVideoArgs(input: BuildArgsInput): string[] {
   }
   // -map_metadata should carry this across on its own, but re-asserting it
   // explicitly means the recording date survives even on a muxer that does
-  // not otherwise round-trip it.
-  if (!analysis && info.creationTime) args.push('-metadata', `creation_time=${info.creationTime}`)
+  // not otherwise round-trip it. Phones store it on the video stream itself,
+  // not just the container, so it is set in both places.
+  if (!analysis && info.creationTime) {
+    args.push('-metadata', `creation_time=${info.creationTime}`, '-metadata:s:v:0', `creation_time=${info.creationTime}`)
+  }
 
   // Filters: drop frames first, then scale fewer of them.
   const filters: string[] = []

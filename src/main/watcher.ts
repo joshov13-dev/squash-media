@@ -43,6 +43,9 @@ export class FolderWatcher {
   private pending = new Map<string, Pending>()
   /** Paths already reported, so edits and our own renames do not repeat them. */
   private reported = new Set<string>()
+  /** Watch IDs still taking their initial snapshot; events for them are queued, not acted on. */
+  private seeding = new Set<string>()
+  private queuedDuringSeed = new Map<string, string[]>()
   private timer: NodeJS.Timeout | null = null
   private retryTimer: NodeJS.Timeout | null = null
   private readonly pollMs: number
@@ -61,6 +64,8 @@ export class FolderWatcher {
       if (!next || next.path !== w.folder.path) {
         w.fsw?.close()
         this.watchers.delete(id)
+        this.seeding.delete(id)
+        this.queuedDuringSeed.delete(id)
       } else {
         w.folder = next
       }
@@ -78,6 +83,8 @@ export class FolderWatcher {
     for (const w of this.watchers.values()) w.fsw?.close()
     this.watchers.clear()
     this.pending.clear()
+    this.seeding.clear()
+    this.queuedDuringSeed.clear()
     if (this.timer) clearInterval(this.timer)
     if (this.retryTimer) clearInterval(this.retryTimer)
     this.timer = this.retryTimer = null
@@ -95,9 +102,21 @@ export class FolderWatcher {
     const entry: { folder: WatchFolder; fsw: FSWatcher | null; error?: string } = { folder, fsw: null }
     this.watchers.set(folder.id, entry)
     try {
+      this.seeding.add(folder.id)
       const fsw = watch(folder.path, { recursive: true, persistent: false }, (_event, filename) => {
         if (!filename) return
-        this.seen(folder.id, join(folder.path, filename.toString()))
+        const path = join(folder.path, filename.toString())
+        // The initial snapshot below is still running: an event this early
+        // could be for a file that was already there before watching
+        // started (seen on macOS, and under load on other platforms too),
+        // so it is held until the snapshot says whether that's the case.
+        if (this.seeding.has(folder.id)) {
+          const q = this.queuedDuringSeed.get(folder.id) ?? []
+          q.push(path)
+          this.queuedDuringSeed.set(folder.id, q)
+          return
+        }
+        this.seen(folder.id, path)
       })
       fsw.on('error', (e) => {
         fsw.close()
@@ -113,7 +132,12 @@ export class FolderWatcher {
       // an event for a file that changed just before watching started (it
       // catches up on the OS's very recent change history), so a fresh
       // event alone is not proof a file is actually new.
-      void this.seedExisting(folder.path)
+      void this.seedExisting(folder.path).then(() => {
+        this.seeding.delete(folder.id)
+        const queued = this.queuedDuringSeed.get(folder.id) ?? []
+        this.queuedDuringSeed.delete(folder.id)
+        for (const path of queued) this.seen(folder.id, path)
+      })
     } catch (e) {
       entry.error = friendly(e)
       this.scheduleRetry()
