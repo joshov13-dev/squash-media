@@ -115,6 +115,10 @@ export function UpdatesPane() {
             <ExternalLink size={13} /> Report a problem
           </Button>
         </div>
+        <p className="text-[12px] leading-snug text-ink-3">
+          Everything happens on this computer. Your photos and videos are never uploaded or sent anywhere — SquashMedia has no server and nothing to send
+          them to.
+        </p>
       </Group>
     </div>
   )
